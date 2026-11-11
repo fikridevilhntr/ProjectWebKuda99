@@ -1,0 +1,107 @@
+/* =====================================================
+   ECOSORT - FEEDBACK & MOTION
+   Token animasi, toast/snackbar, dan animasi modal
+   yang dipakai bersama oleh seluruh halaman.
+===================================================== */
+
+:root {
+  --motion-fast: .12s;
+  --motion-base: .2s;
+  --motion-slow: .3s;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+
+  --tone-success: #166534;
+  --tone-success-bg: #dcfce7;
+  --tone-error: #b91c1c;
+  --tone-error-bg: #fee2e2;
+  --tone-info: #1d4ed8;
+  --tone-info-bg: #dbeafe;
+}
+
+/* -----------------------------------------------------
+   KEYFRAMES
+----------------------------------------------------- */
+
+@keyframes ecosortFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes ecosortPopIn {
+  from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes ecosortToastIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ecosortToastOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(12px); }
+}
+
+/* -----------------------------------------------------
+   MODAL CRUD (.modal-backdrop + .modal)
+----------------------------------------------------- */
+
+.modal-backdrop {
+  animation: ecosortFadeIn var(--motion-base) var(--ease-out);
+}
+
+.modal-backdrop > .modal {
+  animation: ecosortPopIn var(--motion-base) var(--ease-out);
+}
+
+/* Dialog konfirmasi (logout, hapus data) */
+.ecosort-logout-dialog {
+  animation: ecosortPopIn var(--motion-base) var(--ease-out);
+}
+
+.ecosort-logout-dialog::backdrop {
+  animation: ecosortFadeIn var(--motion-base) var(--ease-out);
+}
+
+/* -----------------------------------------------------
+   TOAST / SNACKBAR
+   Markup dihasilkan oleh js/components/feedback.js
+----------------------------------------------------- */
+
+.toast {
+  animation: ecosortToastIn var(--motion-base) var(--ease-out);
+}
+
+.toast.is-leaving {
+  animation: ecosortToastOut var(--motion-fast) ease-in forwards;
+}
+
+.toast-success > span {
+  background: var(--tone-success-bg);
+  color: var(--tone-success);
+}
+
+.toast-error {
+  border-color: #fecaca;
+}
+
+.toast-error > span {
+  background: var(--tone-error-bg);
+  color: var(--tone-error);
+}
+
+.toast-info > span {
+  background: var(--tone-info-bg);
+  color: var(--tone-info);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop,
+  .modal-backdrop > .modal,
+  .ecosort-logout-dialog,
+  .ecosort-logout-dialog::backdrop,
+  .toast,
+  .toast.is-leaving {
+    animation: none;
+  }
+}

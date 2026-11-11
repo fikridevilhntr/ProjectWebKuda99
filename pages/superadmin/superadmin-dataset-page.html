@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#166534">
+  <meta name="description" content="Kelola dataset pelatihan dan pengujian EcoSort.">
+
+  <title>Dataset Pelatihan | EcoSort Super Admin</title>
+
+  <link rel="icon" type="image/svg+xml" href="../../assets/icon/favicon.svg">
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+
+<body>
+
+  <div id="app-root"></div>
+
+  <noscript>
+    Aktifkan JavaScript untuk menggunakan EcoSort.
+  </noscript>
+
+  <script type="module">
+    import { showToast as showSharedToast, confirmLogout } from "../../js/components/feedback.js";
+
+    import {
+      getActiveSession,
+      logout
+    } from "../../js/core/auth.js";
+
+    import {
+      allowedPagesForRole,
+      pageFromHash
+    } from "../../js/core/router.js";
+
+    import {
+      renderSidebar,
+      bindSidebar,
+      renderHeader,
+      bindHeader
+    } from "../../js/core/layout.js";
+
+    import {
+      createDataPage
+    } from "../../js/modules/data-page.js";
+
+    import {
+      getData,
+      isDataItemArray,
+      readLocal,
+      writeLocal
+    } from "../../js/core/database.js";
+
+    import {
+      icon
+    } from "../../js/core/icons.js";
+
+
+    /* =========================================
+       SESSION VALIDATION
+    ========================================= */
+
+    const ROLE = "Super Admin";
+    const session = getActiveSession();
+
+    const ROLE_HOME = {
+      "User": "../user/user-dashboard.html",
+      "Sub Admin": "../subadmin/subadmin-dashboard.html",
+      "Super Admin": "./superadmin-dashboard.html"
+    };
+
+    if (!session) {
+      window.location.replace("../login.html");
+      throw new Error("ECOSORT: Sesi tidak ditemukan.");
+    }
+
+    if (session.role !== ROLE) {
+      window.location.replace(
+        ROLE_HOME[session.role] || "../login.html"
+      );
+
+      throw new Error("ECOSORT: Akses tidak diizinkan.");
+    }
+
+
+    /* =========================================
+       ROOT & ROUTES
+    ========================================= */
+
+    const root = document.getElementById("app-root");
+
+    if (!root) {
+      throw new Error("ECOSORT: App root tidak ditemukan.");
+    }
+
+    const allowedPages = allowedPagesForRole(ROLE);
+
+    const PAGE_ROUTES = {
+      dashboard: "./superadmin-dashboard.html",
+      users: "./superadmin-users.html",
+      waste: "./superadmin-waste-page.html",
+      guides: "./superadmin-guides-page.html",
+      dataset: "./superadmin-dataset-page.html",
+      model: "./superadmin-model-page.html",
+      reports: "../reports.html",
+      profile: "../user/user-profile.html",
+      settings: "../settings.html"
+    };
+
+
+    /* =========================================
+       PRESERVE OLD DATA
+    ========================================= */
+
+    const currentDataset = readLocal(
+      "data-dataset",
+      null,
+      isDataItemArray
+    );
+
+    if (!Array.isArray(currentDataset)) {
+
+      const legacyDataset = getData("dataset");
+
+      if (isDataItemArray(legacyDataset)) {
+        writeLocal("data-dataset", legacyDataset);
+      }
+
+    }
+
+
+    /* =========================================
+       STATE
+    ========================================= */
+
+    let sidebarOpen = false;
+    let toastTimer = null;
+
+    let unmountDataset = () => {};
+    let unbindHeader = () => {};
+
+    let logoutOpen = false;
+
+
+    /* =========================================
+       HTML ESCAPE
+    ========================================= */
+
+    function escapeHTML(value = "") {
+      return String(value).replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      })[character]);
+    }
+
+
+    /* =========================================
+       TOAST
+    ========================================= */
+
+    function showToast(message, tone = "success") {
+      showSharedToast(message, tone);
+    }
+
+
+    /* =========================================
+       NAVIGATION
+    ========================================= */
+
+    function navigate(page) {
+
+      if (!allowedPages.has(page)) {
+        return false;
+      }
+
+      const destination = PAGE_ROUTES[page];
+
+      if (!destination) {
+        return false;
+      }
+
+      const target = new URL(
+        destination,
+        window.location.href
+      );
+
+      target.hash = `app/${page}`;
+
+      window.location.assign(target.href);
+
+      return true;
+    }
+
+
+    /* =========================================
+       SIDEBAR
+    ========================================= */
+
+    function setSidebarOpen(open) {
+
+      sidebarOpen = Boolean(open);
+
+      root.querySelector(".sidebar")
+        ?.classList.toggle(
+          "sidebar-open",
+          sidebarOpen
+        );
+
+      const overlay = root.querySelector(".side-overlay");
+
+      if (overlay) {
+
+        overlay.style.display =
+          sidebarOpen &&
+          window.matchMedia("(max-width: 1050px)").matches
+            ? "block"
+            : "none";
+
+      }
+
+    }
+
+
+    /* =========================================
+       LOGOUT MODAL
+    ========================================= */
+
+    function renderLogoutModal() {
+
+      const modalRoot = root.querySelector("#modal-root");
+
+      if (!modalRoot) return;
+
+      if (!logoutOpen) {
+        modalRoot.replaceChildren();
+        return;
+      }
+
+      modalRoot.innerHTML = `
+        <div
+          class="modal-backdrop"
+          data-shell-action="close-logout-backdrop"
+          role="presentation"
+        >
+
+          <form
+            class="modal"
+            data-shell-form="logout"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-title"
+            novalidate
+          >
+
+            <div class="modal-head">
+
+              <div class="delete-icon">
+
+                ${icon("waste")}
+
+                <h3 id="logout-title">
+                  Keluar dari EcoSort?
+                </h3>
+
+                <p>
+                  Tindakan ini akan mengakhiri sesi akun Anda.
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                data-shell-action="cancel-logout"
+                aria-label="Tutup modal"
+              >
+                ${icon("close")}
+              </button>
+
+            </div>
+
+            <div class="modal-actions">
+
+              <button
+                type="button"
+                class="btn btn-outline"
+                data-shell-action="cancel-logout"
+              >
+                Batal
+              </button>
+
+              <button
+                type="submit"
+                class="btn btn-danger"
+              >
+                Ya, keluar
+              </button>
+
+            </div>
+
+          </form>
+
+        </div>
+      `;
+
+      modalRoot
+        .querySelector('[data-shell-action="cancel-logout"]')
+        ?.focus();
+
+    }
+
+    async function handleLogout() {
+      const confirmed = await confirmLogout();
+      if (!confirmed) return;
+
+      if (logout()) {
+        window.location.assign("../landing.html");
+      } else {
+        showToast("Gagal keluar dari akun.", "error");
+      }
+    }
+
+
+    /* =========================================
+       ROOT CLICK HANDLER
+    ========================================= */
+
+    function handleShellClick(event) {
+
+      const action = event.target.closest(
+        "[data-shell-action]"
+      );
+
+      if (!action || !root.contains(action)) {
+        return;
+      }
+
+      switch (action.dataset.shellAction) {
+
+        case "close-overlay":
+          setSidebarOpen(false);
+          break;
+
+        case "dismiss-toast": {
+
+          root.querySelector("#toast-root")
+            ?.replaceChildren();
+
+          if (toastTimer) {
+            window.clearTimeout(toastTimer);
+            toastTimer = null;
+          }
+
+          break;
+        }
+
+        case "cancel-logout":
+          logoutOpen = false;
+          renderLogoutModal();
+          break;
+
+        case "close-logout-backdrop":
+
+          if (event.target === action) {
+            logoutOpen = false;
+            renderLogoutModal();
+          }
+
+          break;
+
+      }
+
+    }
+
+
+    /* =========================================
+       ROOT SUBMIT HANDLER
+    ========================================= */
+
+    function handleShellSubmit(event) {
+
+      const form = event.target.closest(
+        '[data-shell-form="logout"]'
+      );
+
+      if (!form || !root.contains(form)) {
+        return;
+      }
+
+      event.preventDefault();
+
+      logoutOpen = false;
+      renderLogoutModal();
+
+      if (logout()) {
+
+        window.location.assign("../landing.html");
+
+      } else {
+
+        showToast(
+          "Gagal mengakhiri sesi.",
+          "error"
+        );
+
+      }
+
+    }
+
+
+    /* =========================================
+       KEYBOARD
+    ========================================= */
+
+    function handleKeydown(event) {
+
+      if (
+        event.key === "Escape" &&
+        logoutOpen
+      ) {
+
+        logoutOpen = false;
+        renderLogoutModal();
+
+      }
+
+    }
+
+
+    /* =========================================
+       RENDER APPLICATION
+    ========================================= */
+
+    function renderApplication() {
+
+      unmountDataset();
+      unbindHeader();
+
+      root.innerHTML = `
+
+        <div class="app-shell">
+
+          ${renderSidebar({
+            role: ROLE,
+            page: "dataset",
+            open: sidebarOpen
+          })}
+
+          <div class="app-main">
+
+            ${renderHeader({
+              role: ROLE
+            })}
+
+            <main>
+
+              <div id="dataset-content"></div>
+
+            </main>
+
+          </div>
+
+          <div
+            class="side-overlay"
+            data-shell-action="close-overlay"
+            style="display:none"
+          ></div>
+
+        </div>
+
+        <div id="modal-root"></div>
+
+        <div id="toast-root"></div>
+
+      `;
+
+
+      /* SIDEBAR */
+
+      bindSidebar(
+        root.querySelector(".sidebar"),
+        {
+          setPage: navigate,
+          setOpen: setSidebarOpen,
+          onLogout: handleLogout
+        }
+      );
+
+
+      /* HEADER */
+
+      unbindHeader = bindHeader(
+        root.querySelector(".app-header"),
+        {
+          role: ROLE,
+
+          onMenu: () => setSidebarOpen(true),
+
+          onNavigate: navigate
+        }
+      );
+
+
+      /* ORIGINAL TARGET DATA PAGE */
+
+      const datasetRoot = root.querySelector(
+        "#dataset-content"
+      );
+
+      const datasetPage = createDataPage({
+        kind: "dataset",
+        onToast: showToast
+      });
+
+      unmountDataset = datasetPage.mount(
+        datasetRoot
+      );
+
+    }
+
+
+    /* =========================================
+       INITIALIZATION
+    ========================================= */
+
+    root.addEventListener(
+      "click",
+      handleShellClick
+    );
+
+    root.addEventListener(
+      "submit",
+      handleShellSubmit
+    );
+
+    window.addEventListener(
+      "keydown",
+      handleKeydown
+    );
+
+    const requestedPage = pageFromHash();
+
+    if (
+      requestedPage &&
+      requestedPage !== "dataset"
+    ) {
+
+      if (!navigate(requestedPage)) {
+
+        window.history.replaceState(
+          null,
+          "",
+          "#app/dataset"
+        );
+
+        renderApplication();
+
+      }
+
+    } else {
+
+      if (!requestedPage) {
+
+        window.history.replaceState(
+          null,
+          "",
+          "#app/dataset"
+        );
+
+      }
+
+      renderApplication();
+
+    }
+
+
+    /* =========================================
+       CLEANUP
+    ========================================= */
+
+    window.addEventListener(
+      "pagehide",
+      () => {
+
+        unmountDataset();
+        unbindHeader();
+
+        root.removeEventListener(
+          "click",
+          handleShellClick
+        );
+
+        root.removeEventListener(
+          "submit",
+          handleShellSubmit
+        );
+
+        window.removeEventListener(
+          "keydown",
+          handleKeydown
+        );
+
+        if (toastTimer) {
+          window.clearTimeout(toastTimer);
+        }
+
+      },
+      { once: true }
+    );
+
+  </script>
+
+</body>
+</html>

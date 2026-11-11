@@ -1,0 +1,265 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#166534">
+
+  <meta
+    name="description"
+    content="Buat akun EcoSort dan mulai perjalanan memilah sampah."
+  >
+
+  <title>Daftar Akun - EcoSort</title>
+
+  <link
+    rel="icon"
+    type="image/svg+xml"
+    href="../assets/icon/favicon.svg"
+  >
+
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+
+<body>
+
+  <div id="auth-root"></div>
+
+  <noscript>
+    <p>
+      EcoSort membutuhkan JavaScript.
+      Silakan aktifkan JavaScript pada browser Anda.
+    </p>
+  </noscript>
+
+  <script type="module">
+
+    import {
+      renderAuthView,
+      bindAuthView
+    } from "../js/components/auth-view.js";
+
+    import {
+      submitAuthentication,
+      AUTH_MESSAGES
+    } from "../js/core/auth.js";
+
+
+    const root = document.getElementById("auth-root");
+
+    if (!root) {
+      throw new Error("ECOSORT: Auth root tidak ditemukan.");
+    }
+
+
+    const state = {
+      mode: "register",
+      role: "User",
+      name: "",
+      email: "",
+      password: "",
+      remember: false,
+      showPassword: false,
+      loading: false,
+      errors: {},
+      message: ""
+    };
+
+
+    let unbindView = () => {};
+
+
+    function captureFormValues() {
+
+      const form = root.querySelector(
+        '[data-form="auth"]'
+      );
+
+      if (!form) return;
+
+      form.querySelectorAll(".field").forEach(field => {
+
+        const label = field.querySelector(
+          ":scope > span"
+        );
+
+        const input = field.querySelector("input");
+
+        if (!label || !input) return;
+
+        const labelText = label.textContent.trim();
+
+        if (labelText === "Nama lengkap") {
+          state.name = input.value;
+        }
+
+        if (labelText === "Alamat email") {
+          state.email = input.value;
+        }
+
+        if (labelText === "Kata sandi") {
+          state.password = input.value;
+          state.showPassword = input.type === "text";
+        }
+
+      });
+
+    }
+
+
+    function cleanupView() {
+      unbindView();
+      unbindView = () => {};
+    }
+
+
+    function renderRegistration() {
+
+      cleanupView();
+
+      root.innerHTML = renderAuthView(state);
+
+      unbindView = bindAuthView(root, {
+
+        onSubmit: values => {
+          handleRegistration(values);
+        },
+
+        onModeChange: mode => {
+
+          captureFormValues();
+
+          if (mode === "login") {
+            window.location.assign("./login.html");
+            return;
+          }
+
+          state.mode = mode;
+          state.errors = {};
+          state.message = "";
+          state.loading = false;
+
+          renderRegistration();
+        },
+
+        onRoleChange: role => {
+          captureFormValues();
+          state.role = role;
+          renderRegistration();
+        },
+        onGoogleLogin: () => {
+
+          state.message = AUTH_MESSAGES.google;
+
+          renderRegistration();
+
+        },
+
+        onSuperAdmin: () => {
+
+          window.location.assign("./login.html");
+
+        }
+
+      });
+
+    }
+
+
+    async function handleRegistration(values) {
+
+      if (state.loading) return;
+
+      Object.assign(state, values);
+
+      state.loading = true;
+      state.errors = {};
+      state.message = "";
+
+      renderRegistration();
+
+      try {
+
+        const result = await submitAuthentication({
+
+          mode: "register",
+
+          role: state.role,
+
+          name: state.name,
+
+          email: state.email,
+
+          password: state.password
+
+        });
+
+
+        state.loading = false;
+
+
+        if (!result.success) {
+
+          state.errors = result.errors || {};
+
+          state.message = result.message || "";
+
+          renderRegistration();
+
+          return;
+
+        }
+
+
+        if (result.action === "register") {
+
+          state.mode = "login";
+
+          state.password = "";
+
+          state.showPassword = false;
+
+          state.errors = {};
+
+          state.message =
+            result.message || AUTH_MESSAGES.register;
+
+          window.location.assign("./login.html");
+
+          return;
+
+        }
+
+
+        state.message =
+          result.message || "Registrasi tidak dapat diproses.";
+
+        renderRegistration();
+
+      } catch (error) {
+
+        console.error(
+          "ECOSORT: Registration error.",
+          error
+        );
+
+        state.loading = false;
+
+        state.message =
+          error.message ||
+          "Registrasi gagal. Silakan coba kembali.";
+
+        renderRegistration();
+
+      }
+
+    }
+
+
+    renderRegistration();
+
+  </script>
+
+</body>
+</html>

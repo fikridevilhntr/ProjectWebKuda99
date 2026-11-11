@@ -1,0 +1,477 @@
+
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#166534">
+
+  <meta
+    name="description"
+    content="Masuk ke EcoSort untuk mengenali dan memilah sampah dengan tepat."
+  >
+
+  <title>Masuk ke EcoSort</title>
+
+  <link
+    rel="icon"
+    type="image/svg+xml"
+    href="../assets/icon/favicon.svg"
+  >
+
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+
+<body>
+
+  <!-- AUTHENTICATION ROOT -->
+
+  <div id="auth-root"></div>
+
+  <noscript>
+    <p>
+      EcoSort membutuhkan JavaScript untuk menjalankan autentikasi.
+      Aktifkan JavaScript pada browser Anda.
+    </p>
+  </noscript>
+
+  <!-- AUTHENTICATION APPLICATION -->
+
+  <script type="module">
+
+    import {
+      renderAuthView,
+      bindAuthView,
+      renderSuperAdminLoginView,
+      bindSuperAdminView
+    } from "../js/components/auth-view.js";
+
+    import {
+      submitAuthentication,
+      submitSuperAdminAuthentication,
+      AUTH_MESSAGES
+    } from "../js/core/auth.js";
+
+
+    /* =====================================
+       ROOT ELEMENT
+    ===================================== */
+
+    const root = document.getElementById("auth-root");
+
+    if (!root) {
+      throw new Error("ECOSORT: Auth root tidak ditemukan.");
+    }
+
+
+    /* =====================================
+       AUTHENTICATION STATE
+    ===================================== */
+
+    const state = {
+      mode: "login",
+      role: "User",
+
+      name: "",
+      email: "",
+      password: "",
+
+      remember: false,
+      showPassword: false,
+
+      loading: false,
+      errors: {},
+      message: ""
+    };
+
+
+    const superAdminState = {
+      email: "",
+      password: "",
+
+      showPassword: false,
+      loading: false,
+
+      errors: {}
+    };
+
+
+    let currentView = "auth";
+    let unbindView = () => {};
+
+
+    /* =====================================
+       CLEANUP EVENT LISTENERS
+    ===================================== */
+
+    function cleanupView() {
+      unbindView();
+      unbindView = () => {};
+    }
+
+
+    /* =====================================
+       CAPTURE CURRENT FORM VALUES
+    ===================================== */
+
+    function captureAuthValues() {
+
+      const form = root.querySelector(
+        '[data-form="auth"]'
+      );
+
+      if (!form) return;
+
+      form.querySelectorAll(".field").forEach(field => {
+
+        const label = field.querySelector(":scope > span");
+        const input = field.querySelector("input");
+
+        if (!label || !input) return;
+
+        const labelText = label.textContent.trim();
+
+        if (labelText === "Nama lengkap") {
+          state.name = input.value;
+        }
+
+        if (labelText === "Alamat email") {
+          state.email = input.value;
+        }
+
+        if (labelText === "Kata sandi") {
+          state.password = input.value;
+          state.showPassword = input.type === "text";
+        }
+
+      });
+
+      const remember = form.querySelector(
+        '[data-input="remember"]'
+      );
+
+      if (remember) {
+        state.remember = remember.checked;
+      }
+
+    }
+
+
+    /* =====================================
+       NORMAL AUTHENTICATION VIEW
+    ===================================== */
+
+    function renderAuth() {
+
+      cleanupView();
+
+      currentView = "auth";
+
+      root.innerHTML = renderAuthView(state);
+
+      unbindView = bindAuthView(root, {
+
+        onSubmit: values => {
+          handleAuthSubmit(values);
+        },
+
+        onModeChange: mode => {
+
+          captureAuthValues();
+
+          state.mode = mode;
+
+          state.errors = {};
+          state.message = "";
+          state.loading = false;
+
+          renderAuth();
+
+        },
+
+        onRoleChange: role => {
+
+          captureAuthValues();
+
+          state.role = role;
+
+          renderAuth();
+
+        },
+
+        onSuperAdmin: () => {
+
+          captureAuthValues();
+
+          renderSuperAdmin();
+
+        },
+
+        onGoogleLogin: () => {
+
+          captureAuthValues();
+
+          state.message = AUTH_MESSAGES.google;
+
+          renderAuth();
+
+        }
+
+      });
+
+    }
+
+
+    /* =====================================
+       NORMAL AUTHENTICATION SUBMISSION
+    ===================================== */
+
+    async function handleAuthSubmit(values) {
+
+      Object.assign(state, values);
+
+      captureAuthValues();
+
+      state.loading = true;
+      state.errors = {};
+      state.message = "";
+
+      renderAuth();
+
+      try {
+
+        const result = await submitAuthentication({
+
+          mode: state.mode,
+          role: state.role,
+
+          name: state.name,
+          email: state.email,
+          password: state.password,
+
+          remember: state.remember
+
+        });
+
+        state.loading = false;
+
+
+        /* VALIDATION ERROR */
+
+        if (!result.success) {
+
+          state.errors = result.errors || {};
+
+          state.message = result.message || "";
+
+          renderAuth();
+
+          return;
+
+        }
+
+
+        /* LOGIN SUCCESS */
+
+        if (result.action === "login") {
+
+          const destinations = {
+
+            "User":
+              "./user/user-dashboard.html",
+
+            "Sub Admin":
+              "./subadmin/subadmin-dashboard.html"
+
+          };
+
+          const destination =
+            destinations[result.session.role];
+
+          if (!destination) {
+            throw new Error("Tujuan dashboard tidak ditemukan.");
+          }
+
+          window.location.assign(destination);
+
+          return;
+
+        }
+
+
+        /* REGISTRATION SUCCESS */
+
+        if (result.action === "register") {
+
+          state.mode = "login";
+
+          state.password = "";
+
+          state.errors = {};
+
+          state.message = result.message || "";
+
+          renderAuth();
+
+          return;
+
+        }
+
+
+        /* FORGOT PASSWORD SUCCESS */
+
+        if (result.action === "forgot") {
+
+          state.message = result.message || "";
+
+          state.errors = {};
+
+          renderAuth();
+
+          return;
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          "ECOSORT: Authentication error.",
+          error
+        );
+
+        state.loading = false;
+
+        state.message =
+          error.message || "Terjadi kesalahan autentikasi.";
+
+        renderAuth();
+
+      }
+
+    }
+
+
+    /* =====================================
+       SUPER ADMIN AUTHENTICATION VIEW
+    ===================================== */
+
+    function renderSuperAdmin() {
+
+      cleanupView();
+
+      currentView = "superadmin";
+
+      root.innerHTML = renderSuperAdminLoginView(
+        superAdminState
+      );
+
+      unbindView = bindSuperAdminView(root, {
+
+        onSubmit: values => {
+
+          handleSuperAdminSubmit(values);
+
+        },
+
+        onBack: () => {
+
+          superAdminState.errors = {};
+
+          renderAuth();
+
+        },
+
+        onHome: () => {
+
+          window.location.assign("./landing.html");
+
+        }
+
+      });
+
+    }
+
+
+    /* =====================================
+       SUPER ADMIN LOGIN SUBMISSION
+    ===================================== */
+
+    async function handleSuperAdminSubmit(values) {
+
+      Object.assign(superAdminState, values);
+
+      const passwordInput = root.querySelector(
+        '.superadmin-card .field input[type="password"], .superadmin-card .field input[type="text"]'
+      );
+
+      if (passwordInput) {
+        superAdminState.showPassword =
+          passwordInput.type === "text";
+      }
+
+      superAdminState.loading = true;
+      superAdminState.errors = {};
+
+      renderSuperAdmin();
+
+      try {
+
+        const result = await submitSuperAdminAuthentication({
+
+          email: superAdminState.email,
+          password: superAdminState.password
+
+        });
+
+        superAdminState.loading = false;
+
+        if (!result.success) {
+
+          superAdminState.errors =
+            result.errors || {};
+
+          renderSuperAdmin();
+
+          return;
+
+        }
+
+
+        /* SUPER ADMIN SUCCESS */
+
+        window.location.assign(
+          "./superadmin/superadmin-dashboard.html"
+        );
+
+      } catch (error) {
+
+        console.error(
+          "ECOSORT: Super Admin authentication error.",
+          error
+        );
+
+        superAdminState.loading = false;
+
+        superAdminState.errors = {
+          password:
+            error.message || "Login Super Admin gagal."
+        };
+
+        renderSuperAdmin();
+
+      }
+
+    }
+
+
+    /* =====================================
+       INITIALIZE
+    ===================================== */
+
+    renderAuth();
+
+  </script>
+
+</body>
+</html>

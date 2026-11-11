@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#166534">
+  <meta name="description" content="Riwayat klasifikasi sampah pengguna EcoSort.">
+  <title>Riwayat Klasifikasi | EcoSort</title>
+  <link rel="icon" type="image/svg+xml" href="../../assets/icon/favicon.svg">
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div id="app-root"></div>
+  <noscript>
+    <p>Aktifkan JavaScript untuk menggunakan EcoSort.</p>
+  </noscript>
+
+  <script type="module">
+    import { showToast as showSharedToast, confirmLogout as confirmLogoutDialog } from "../../js/components/feedback.js";
+    import { getActiveSession, logout } from "../../js/core/auth.js";
+    import { allowedPagesForRole, pageFromHash } from "../../js/core/router.js";
+    import { renderSidebar, bindSidebar, renderHeader, bindHeader } from "../../js/core/layout.js";
+    import { icon } from "../../js/core/icons.js";
+    import { readLocal, writeLocal, isHistoryOwnedBy } from "../../js/core/database.js";
+
+    const session = getActiveSession();
+    const roleHome = {
+      "User": "./user-dashboard.html",
+      "Sub Admin": "../subadmin/subadmin-dashboard.html",
+      "Super Admin": "../superadmin/superadmin-dashboard.html"
+    };
+
+    if (!session) {
+      window.location.replace("../../login.html");
+      throw new Error("ECOSORT: Session tidak ditemukan.");
+    }
+
+    if (session.role !== "User") {
+      window.location.replace(roleHome[session.role] || "../../login.html");
+      throw new Error("ECOSORT: Role tidak sesuai.");
+    }
+
+    const root = document.getElementById("app-root");
+    if (!root) throw new Error("ECOSORT: App root tidak ditemukan.");
+
+    const PAGE_ROUTES = {
+      dashboard: "./user-dashboard.html",
+      classify: "./user-classification.html",
+      history: "./user-history.html",
+      profile: "./user-profile.html",
+      settings: "../settings.html"
+    };
+
+    const allowedPages = allowedPagesForRole("User");
+    const HISTORY_KEY = "history-v2";
+
+    let sidebarOpen = false;
+    let filterVisible = false;
+    let filterDate = "";
+    let selectedRecord = null;
+    let pendingDelete = null;
+    let confirmLogout = false;
+    let toastTimer = null;
+    let removeHeaderEvents = () => {};
+
+    function escapeHTML(value = "") {
+      return String(value).replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      })[character]);
+    }
+
+    function getHistoryRecords() {
+      try {
+        const records = readLocal(HISTORY_KEY, []);
+        if (!Array.isArray(records)) return [];
+        return records.filter(record =>
+          record &&
+          typeof record === "object" &&
+          !Array.isArray(record) &&
+          isHistoryOwnedBy(record, session.email)
+        );
+      } catch (error) {
+        console.error("ECOSORT: Gagal membaca riwayat.", error);
+        return [];
+      }
+    }
+
+    function getRecordKey(record, index) {
+      return String(record.id ?? record.timestamp ?? index);
+    }
+
+    function getRecordTimestamp(record) {
+      const timestamp = Number(record.timestamp ?? record.id);
+
+      if (Number.isFinite(timestamp) && timestamp > 0) {
+        return timestamp;
+      }
+
+      const parsed = Date.parse(record.date || "");
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function formatDate(record) {
+      if (record.date) return String(record.date);
+
+      const timestamp = getRecordTimestamp(record);
+      if (!timestamp) return "-";
+
+      return new Intl.DateTimeFormat("id-ID", {
+        dateStyle: "medium",
+        timeStyle: "short"
+      }).format(timestamp);
+    }
+
+    function getCategory(record) {
+      return String(record.category || "Tidak diketahui");
+    }
+
+    function getTone(record) {
+      const tone = String(record.tone || "").toLowerCase();
+
+      if (["green", "blue", "yellow", "red", "gray"].includes(tone)) {
+        return tone;
+      }
+
+      const category = getCategory(record).toLowerCase();
+
+      if (category === "anorganik") return "blue";
+      if (category === "residu") return "gray";
+
+      return "green";
+    }
+
+    function getIcon(record) {
+      if (record.icon) return String(record.icon);
+
+      const category = getCategory(record).toLowerCase();
+
+      if (category === "anorganik") return "waste";
+      if (category === "residu") return "close";
+
+      return "logo";
+    }
+
+    function getHandling(record) {
+      if (Array.isArray(record.handling)) {
+        return record.handling.map(String);
+      }
+
+      if (Array.isArray(record.recommendation)) {
+        return record.recommendation.map(String);
+      }
+
+      if (
+        typeof record.recommendation === "string" &&
+        record.recommendation.trim()
+      ) {
+        return [record.recommendation.trim()];
+      }
+
+      return [];
+    }
+
+    function getRecommendation(record) {
+      if (typeof record.recommendation === "string") {
+        return record.recommendation;
+      }
+
+      return getHandling(record).join(" ") ||
+        "Rekomendasi tidak tersedia.";
+    }
+
+    function getBadgeTone(record) {
+      const tone = getTone(record);
+
+      return ["yellow", "red", "blue", "gray"].includes(tone)
+        ? tone
+        : "green";
+    }
+
+    function getFilteredRecords() {
+      return getHistoryRecords()
+        .map((record, index) => ({ record, index }))
+        .filter(({ record }) => {
+          if (!filterDate) return true;
+
+          const timestamp = getRecordTimestamp(record);
+          if (!timestamp) return false;
+
+          return new Date(timestamp)
+            .toISOString()
+            .slice(0, 10) === filterDate;
+        });
+    }
+
+    function getTopCategory(records) {
+      const counts = records.reduce((result, record) => {
+        const category = getCategory(record);
+        result[category] = (result[category] || 0) + 1;
+        return result;
+      }, {});
+
+      return Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
+    }
+
+    function renderSummary(records) {
+      return `
+        <div class="history-summary">
+          <div>
+            <span class="mini-icon">${icon("history")}</span>
+            <p>
+              <small>Total klasifikasi</small>
+              <b>${records.length} riwayat</b>
+            </p>
+          </div>
+
+          <div>
+            <span class="mini-icon blue">${icon("logo")}</span>
+            <p>
+              <small>Kategori terbanyak</small>
+              <b>${escapeHTML(getTopCategory(records))}</b>
+            </p>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderHistoryCard(entry) {
+      const { record, index } = entry;
+      const tone = getTone(record);
+
+      const symbolClass =
+        tone === "blue" ? "c1" :
+        tone === "gray" ? "c2" : "";
+
+      const key = escapeHTML(getRecordKey(record, index));
+
+      return `
+        <article class="history-card">
+
+          <div class="history-card-main">
+            <span class="history-symbol ${symbolClass}">
+              ${icon(getIcon(record), 20)}
+            </span>
+
+            <div>
+              <h3>${escapeHTML(record.name || "Sampah tanpa nama")}</h3>
+              <time>
+                ${icon("history", 13)}
+                ${escapeHTML(formatDate(record))}
+              </time>
+            </div>
+          </div>
+
+          <div class="history-category">
+            <small>HASIL KATEGORI</small>
+
+            <span class="badge badge-${getBadgeTone(record)}">
+              <span class="badge-dot"></span>
+              ${escapeHTML(getCategory(record))}
+            </span>
+          </div>
+
+          <div class="history-recommendation">
+            <small>REKOMENDASI</small>
+            <p>${escapeHTML(getRecommendation(record))}</p>
+          </div>
+
+          <div class="history-card-actions">
+            <button
+              type="button"
+              class="btn btn-outline"
+              data-action="view-detail"
+              data-record-key="${key}"
+            >
+              ${icon("eye", 17)}
+              <span>Lihat detail</span>
+            </button>
+
+            <button
+              type="button"
+              class="history-delete"
+              data-action="request-delete"
+              data-record-key="${key}"
+              title="Hapus riwayat"
+              aria-label="Hapus riwayat ${escapeHTML(record.name || "")}"
+            >
+              ${icon("waste", 18)}
+            </button>
+          </div>
+
+        </article>
+      `;
+    }
+
+    function renderEmptyState(filtered) {
+      return `
+        <div class="history-empty">
+          <span>${icon("history", 28)}</span>
+          <h3>Belum ada riwayat</h3>
+          <p>
+            ${
+              filtered
+                ? "Tidak ada klasifikasi pada tanggal yang dipilih."
+                : "Hasil klasifikasi yang Anda simpan akan muncul di sini."
+            }
+          </p>
+        </div>
+      `;
+    }
+
+    function renderDetailModal(record) {
+      if (!record) return "";
+
+      const tone = getTone(record);
+
+      const symbolClass =
+        tone === "blue" ? "c1" :
+        tone === "gray" ? "c2" : "";
+
+      const handling = getHandling(record);
+
+      return `
+        <div
+          class="modal-backdrop"
+          data-action="close-detail-backdrop"
+          role="presentation"
+        >
+          <div
+            class="modal history-detail-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Detail klasifikasi"
+          >
+
+            <div class="modal-head">
+              <div>
+                <span class="detail-kicker">
+                  DETAIL KLASIFIKASI
+                </span>
+
+                <h3>
+                  ${escapeHTML(record.name || "Sampah tanpa nama")}
+                </h3>
+
+                <p>${escapeHTML(formatDate(record))}</p>
+              </div>
+
+              <button
+                type="button"
+                data-action="close-detail"
+                aria-label="Tutup detail"
+              >
+                ${icon("close")}
+              </button>
+            </div>
+
+            <div class="modal-body">
+
+              <div class="detail-result">
+                <span class="history-symbol ${symbolClass}">
+                  ${icon(getIcon(record))}
+                </span>
+
+                <div>
+                  <small>Hasil kategori</small>
+                  <h4>${escapeHTML(getCategory(record))}</h4>
+                </div>
+
+                <span class="badge badge-${getBadgeTone(record)}">
+                  <span class="badge-dot"></span>
+                  Aturan lokal
+                </span>
+              </div>
+
+              <div class="history-detail-copy">
+                <small>DESKRIPSI SAMPAH</small>
+                <p>
+                  ${escapeHTML(record.description || "Deskripsi tidak tersedia.")}
+                </p>
+
+                <small>ALASAN KLASIFIKASI</small>
+                <p>
+                  ${escapeHTML(record.reason || "Alasan klasifikasi tidak tersedia.")}
+                </p>
+              </div>
+
+              <div class="recommendation detail-recommendation">
+                <span>${icon("logo")}</span>
+
+                <div>
+                  <b>Rekomendasi penanganan</b>
+
+                  <ol>
+                    ${handling.map(step =>
+                      `<li>${escapeHTML(step)}</li>`
+                    ).join("")}
+                  </ol>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="modal-actions">
+              <button
+                type="button"
+                class="btn btn-outline"
+                data-action="close-detail"
+              >
+                Tutup
+              </button>
+
+              <button
+                type="button"
+                class="btn btn-primary"
+                data-action="classify-again"
+              >
+                Klasifikasi lagi
+              </button>
+            </div>
+
+          </div>
+        </div>
+      `;
+    }
+
+    function renderConfirmModal(title, action) {
+      return `
+        <div
+          class="modal-backdrop"
+          data-action="${action}-backdrop"
+          role="presentation"
+        >
+          <form
+            class="modal"
+            data-form="${action}"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-modal-title"
+            novalidate
+          >
+
+            <div class="modal-head">
+              <div class="delete-icon">
+                ${icon("waste")}
+
+                <h3 id="confirm-modal-title">
+                  ${escapeHTML(title)}
+                </h3>
+
+                <p>
+                  Tindakan ini tidak dapat dibatalkan.
+                  Data akan dihapus dari penyimpanan lokal.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                data-action="cancel-${action}"
+                aria-label="Tutup modal"
+              >
+                ${icon("close")}
+              </button>
+            </div>
+
+            <div class="modal-actions">
+              <button
+                type="button"
+                class="btn btn-outline"
+                data-action="cancel-${action}"
+              >
+                Batal
+              </button>
+
+              <button
+                type="submit"
+                class="btn btn-danger"
+              >
+                Ya, hapus
+              </button>
+            </div>
+
+          </form>
+        </div>
+      `;
+    }
+
+    function renderToast() {
+      return "<div id=\"toast-root\" aria-live=\"polite\"></div>";
+    }
+
+    function showToast(message, tone = "success") {
+      showSharedToast(message, tone);
+    }
+
+    function navigate(page) {
+      if (!allowedPages.has(page)) return false;
+
+      const destination = PAGE_ROUTES[page];
+      if (!destination) return false;
+
+      const target = new URL(
+        destination,
+        window.location.href
+      );
+
+      target.hash = `app/${page}`;
+      window.location.assign(target.href);
+
+      return true;
+    }
+
+    async function handleLogout() {
+      const confirmed = await confirmLogoutDialog();
+      if (!confirmed) return;
+
+      if (logout()) {
+        window.location.assign("../landing.html");
+      } else {
+        showToast("Gagal keluar dari akun.", "error");
+      }
+    }
+
+    function setSidebarOpen(open) {
+      sidebarOpen = Boolean(open);
+
+      const sidebar = root.querySelector(".sidebar");
+      const overlay = root.querySelector(".side-overlay");
+
+      sidebar?.classList.toggle(
+        "sidebar-open",
+        sidebarOpen
+      );
+
+      if (overlay) {
+        overlay.style.display =
+          sidebarOpen ? "block" : "none";
+      }
+    }
+
+    function renderApplication() {
+      removeHeaderEvents();
+
+      const records = getHistoryRecords();
+      const filtered = getFilteredRecords();
+
+      const selected = selectedRecord
+        ? records.find((record, index) =>
+            getRecordKey(record, index) === selectedRecord
+          )
+        : null;
+
+      const deleting = pendingDelete
+        ? records.find((record, index) =>
+            getRecordKey(record, index) === pendingDelete
+          )
+        : null;
+
+      root.innerHTML = `
+        <div class="app-shell">
+
+          ${renderSidebar({
+            role: "User",
+            page: "history",
+            open: sidebarOpen
+          })}
+
+          <div class="app-main">
+
+            ${renderHeader({ role: "User" })}
+
+            <main>
+
+              <div class="page-title">
+                <div>
+                  <h1>Riwayat Klasifikasi</h1>
+
+                  <p>
+                    Lihat detail jawaban, hasil kategori,
+                    dan rekomendasi dari klasifikasi Anda.
+                  </p>
+                </div>
+
+                <div class="page-title-actions">
+                  ${
+                    filterVisible
+                      ? `
+                        <input
+                          class="date-filter"
+                          type="date"
+                          value="${escapeHTML(filterDate)}"
+                          data-filter-date
+                          aria-label="Filter tanggal riwayat"
+                        >
+                      `
+                      : ""
+                  }
+
+                  <button
+                    type="button"
+                    class="btn btn-outline"
+                    data-action="toggle-date-filter"
+                  >
+                    ${filterVisible ? "Reset tanggal" : "Filter tanggal"}
+                  </button>
+                </div>
+              </div>
+
+              ${renderSummary(records)}
+
+              <div class="history-cards">
+                ${
+                  filtered.length
+                    ? filtered.map(renderHistoryCard).join("")
+                    : renderEmptyState(Boolean(filterDate))
+                }
+              </div>
+
+            </main>
+
+          </div>
+
+          <div
+            class="side-overlay"
+            data-action="close-overlay"
+            style="display:${sidebarOpen ? "block" : "none"}"
+          ></div>
+
+        </div>
+
+        ${renderDetailModal(selected)}
+
+        ${
+          deleting
+            ? renderConfirmModal(
+                `Hapus riwayat ${deleting.name || "sampah"}?`,
+                "delete-history"
+              )
+            : ""
+        }
+
+        ${
+          confirmLogout
+            ? renderConfirmModal(
+                "Keluar dari EcoSort?",
+                "logout-confirm"
+              )
+            : ""
+        }
+
+        ${renderToast()}
+      `;
+
+      bindSidebar(
+        root.querySelector(".sidebar"),
+        {
+          setPage: navigate,
+          setOpen: setSidebarOpen,
+          onLogout: handleLogout
+        }
+      );
+
+      removeHeaderEvents = bindHeader(
+        root.querySelector(".app-header"),
+        {
+          role: "User",
+          onMenu: () => setSidebarOpen(true),
+          onNavigate: navigate
+        }
+      );
+
+      root
+        .querySelector("[data-filter-date]")
+        ?.addEventListener("change", event => {
+          filterDate = event.target.value;
+          renderApplication();
+        });
+    }
+
+    function closeDetail() {
+      selectedRecord = null;
+      renderApplication();
+    }
+
+    function closeDelete() {
+      pendingDelete = null;
+      renderApplication();
+    }
+
+    function confirmDelete() {
+      if (!pendingDelete) return;
+
+      const records = getHistoryRecords();
+
+      const index = records.findIndex((record, i) =>
+        getRecordKey(record, i) === pendingDelete
+      );
+
+      if (index < 0) {
+        pendingDelete = null;
+        renderApplication();
+        showToast("Riwayat tidak ditemukan.", "error");
+        return;
+      }
+
+      try {
+        const target = records[index];
+        const all = readLocal(HISTORY_KEY, []);
+        const remaining = Array.isArray(all)
+          ? all.filter(item =>
+              String(item?.id ?? item?.timestamp) !==
+              String(target.id ?? target.timestamp)
+            )
+          : [];
+
+        writeLocal(HISTORY_KEY, remaining);
+
+        pendingDelete = null;
+        selectedRecord = null;
+
+        renderApplication();
+
+        showToast("Riwayat klasifikasi berhasil dihapus.");
+
+      } catch (error) {
+        console.error(
+          "ECOSORT: Gagal menghapus riwayat.",
+          error
+        );
+
+        pendingDelete = null;
+        renderApplication();
+
+        showToast(
+          "Riwayat gagal dihapus. Periksa penyimpanan browser.",
+          "error"
+        );
+      }
+    }
+
+    function confirmLogoutAction() {
+      confirmLogout = false;
+
+      if (logout()) {
+        window.location.assign("../landing.html");
+      } else {
+        renderApplication();
+        showToast("Gagal mengakhiri sesi.", "error");
+      }
+    }
+
+    function handleRootClick(event) {
+      const action = event.target.closest("[data-action]");
+
+      if (!action || !root.contains(action)) return;
+
+      const type = action.dataset.action;
+
+      if (
+        type === "close-detail-backdrop" &&
+        event.target === action
+      ) {
+        closeDetail();
+        return;
+      }
+
+      if (
+        type === "delete-history-backdrop" &&
+        event.target === action
+      ) {
+        closeDelete();
+        return;
+      }
+
+      if (
+        type === "logout-confirm-backdrop" &&
+        event.target === action
+      ) {
+        confirmLogout = false;
+        renderApplication();
+        return;
+      }
+
+      switch (type) {
+        case "toggle-date-filter":
+          if (filterVisible && filterDate) {
+            filterDate = "";
+          }
+
+          filterVisible = !filterVisible;
+          renderApplication();
+          break;
+
+        case "view-detail":
+          selectedRecord = action.dataset.recordKey;
+          renderApplication();
+          break;
+
+        case "request-delete":
+          pendingDelete = action.dataset.recordKey;
+          renderApplication();
+          break;
+
+        case "close-detail":
+          closeDetail();
+          break;
+
+        case "cancel-delete-history":
+          closeDelete();
+          break;
+
+        case "cancel-logout-confirm":
+          confirmLogout = false;
+          renderApplication();
+          break;
+
+        case "classify-again":
+          navigate("classify");
+          break;
+
+        case "close-overlay":
+          setSidebarOpen(false);
+          break;
+
+        case "dismiss-toast": {
+          const host = root.querySelector("#toast-root");
+
+          if (host) host.innerHTML = "";
+
+          if (toastTimer) {
+            window.clearTimeout(toastTimer);
+            toastTimer = null;
+          }
+
+          break;
+        }
+      }
+    }
+
+    function handleRootSubmit(event) {
+      const form = event.target.closest("form[data-form]");
+
+      if (!form || !root.contains(form)) return;
+
+      event.preventDefault();
+
+      if (form.dataset.form === "delete-history") {
+        confirmDelete();
+      }
+
+      if (form.dataset.form === "logout-confirm") {
+        confirmLogoutAction();
+      }
+    }
+
+    function handleKeydown(event) {
+      if (event.key !== "Escape") return;
+
+      if (pendingDelete) {
+        pendingDelete = null;
+        renderApplication();
+      } else if (confirmLogout) {
+        confirmLogout = false;
+        renderApplication();
+      } else if (selectedRecord) {
+        selectedRecord = null;
+        renderApplication();
+      }
+    }
+
+    root.addEventListener("click", handleRootClick);
+    root.addEventListener("submit", handleRootSubmit);
+
+    window.addEventListener("keydown", handleKeydown);
+
+    const requestedPage = pageFromHash();
+
+    if (requestedPage && requestedPage !== "history") {
+      navigate(requestedPage);
+    } else {
+      if (!requestedPage) {
+        window.history.replaceState(
+          null,
+          "",
+          "#app/history"
+        );
+      }
+
+      renderApplication();
+    }
+
+    window.addEventListener(
+      "pagehide",
+      () => {
+        removeHeaderEvents();
+
+        window.removeEventListener(
+          "keydown",
+          handleKeydown
+        );
+
+        if (toastTimer) {
+          window.clearTimeout(toastTimer);
+        }
+      },
+      { once: true }
+    );
+  </script>
+</body>
+</html>

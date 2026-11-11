@@ -1,0 +1,228 @@
+/* =====================================================
+   ECOSORT - UI CONSISTENCY
+   Custom dropdown biru untuk seluruh halaman dan role.
+===================================================== */
+
+:root {
+  --ecosort-select-blue: #2563eb;
+  --ecosort-select-blue-dark: #1d4ed8;
+  --ecosort-select-blue-soft: #eff6ff;
+}
+
+/* -----------------------------------------------------
+   CUSTOM SELECT WRAPPER
+----------------------------------------------------- */
+
+.ecosort-select {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Select asli tetap dipakai untuk value, form, dan event change. */
+.ecosort-select-native {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 0 !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* -----------------------------------------------------
+   TOMBOL DROPDOWN / CLOSED STATE
+----------------------------------------------------- */
+
+.ecosort-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  height: 38px;
+  min-width: 0;
+  padding: 0 12px;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  text-align: left;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+
+.ecosort-select-trigger:hover {
+  border-color: #93c5fd;
+}
+
+.ecosort-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--ecosort-select-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .13);
+}
+
+.ecosort-select-trigger:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.ecosort-select-trigger > span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ecosort-select-trigger.is-placeholder {
+  color: #64748b;
+}
+
+.ecosort-select-arrow {
+  position: relative;
+  display: block;
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  margin: -4px 2px 0 0;
+  border-right: 1.6px solid #64748b;
+  border-bottom: 1.6px solid #64748b;
+  transform: rotate(45deg);
+  transition: transform .16s ease, margin .16s ease;
+}
+
+.ecosort-select.is-open .ecosort-select-arrow {
+  margin-top: 4px;
+  transform: rotate(225deg);
+}
+
+.ecosort-select.is-invalid .ecosort-select-trigger {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, .09);
+}
+
+/* -----------------------------------------------------
+   MENU DROPDOWN
+----------------------------------------------------- */
+
+.ecosort-select-menu {
+  position: fixed;
+  z-index: 10000;
+  max-height: 250px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid #dbe4ee;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, .16);
+  overscroll-behavior: contain;
+}
+
+.ecosort-select-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 35px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: #fff;
+  color: #475569;
+  text-align: left;
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background-color .12s ease, color .12s ease;
+}
+
+/* Semua item yang sedang dipilih atau aktif menggunakan warna biru. */
+.ecosort-select-option.is-selected {
+  background: var(--ecosort-select-blue);
+  color: #fff;
+  font-weight: 700;
+}
+
+.ecosort-select-option:hover,
+.ecosort-select-option:focus-visible {
+  outline: none;
+  background: var(--ecosort-select-blue);
+  color: #fff;
+}
+
+.ecosort-select-option.is-selected:hover,
+.ecosort-select-option.is-selected:focus-visible {
+  background: var(--ecosort-select-blue-dark);
+  color: #fff;
+}
+
+.ecosort-select-option:disabled {
+  background: #fff;
+  color: #cbd5e1;
+  cursor: not-allowed;
+}
+
+/* -----------------------------------------------------
+   LAYOUT SUPPORT
+----------------------------------------------------- */
+
+.table-toolbar > .ecosort-select {
+  flex: 0 0 150px;
+  width: 150px;
+}
+
+.field > .ecosort-select {
+  width: 100%;
+}
+
+/* Select periode laporan berada sejajar dengan tombol aksi. */
+.ecosort-select-period {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 140px;
+}
+
+.waste-toolbar .ecosort-select,
+.dataset-toolbar .ecosort-select,
+.guides-toolbar .ecosort-select {
+  width: 100%;
+}
+
+/* Fallback biru untuk select yang belum sempat di-enhance. */
+select:not(.ecosort-select-native) {
+  accent-color: var(--ecosort-select-blue);
+}
+
+select:not(.ecosort-select-native):focus-visible {
+  outline: 2px solid rgba(37, 99, 235, .25);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .ecosort-select-period {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ecosort-select-trigger,
+  .ecosort-select-arrow,
+  .ecosort-select-option {
+    transition: none;
+  }
+}

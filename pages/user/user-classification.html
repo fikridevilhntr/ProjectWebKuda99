@@ -1,0 +1,1570 @@
+
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#166534">
+
+  <meta
+    name="description"
+    content="Klasifikasi sampah EcoSort berdasarkan karakteristik dan aturan lokal."
+  >
+
+  <title>Klasifikasi Sampah | EcoSort</title>
+
+  <link
+    rel="icon"
+    type="image/svg+xml"
+    href="../../assets/icon/favicon.svg"
+  >
+
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+
+<body>
+
+  <div id="app-root"></div>
+
+  <noscript>
+    <p>Aktifkan JavaScript untuk menggunakan EcoSort.</p>
+  </noscript>
+
+  <script type="module">
+    import { showToast as showSharedToast, confirmLogout } from "../../js/components/feedback.js";
+
+    /* =========================================
+       IMPORT MODULES
+    ========================================= */
+
+    import {
+      getActiveSession,
+      logout
+    } from "../../js/core/auth.js";
+
+    import {
+      allowedPagesForRole,
+      pageFromHash
+    } from "../../js/core/router.js";
+
+    import {
+      renderSidebar,
+      bindSidebar,
+      renderHeader,
+      bindHeader
+    } from "../../js/core/layout.js";
+
+    import {
+      icon
+    } from "../../js/core/icons.js";
+
+    import {
+      button,
+      badge
+    } from "../../js/core/components.js";
+
+    import {
+      classifyWaste,
+      guideForClassification
+    } from "../../js/modules/classification.js";
+
+    import {
+      readLocal,
+      writeLocal
+    } from "../../js/core/database.js";
+
+
+    /* =========================================
+       HTML ESCAPE
+    ========================================= */
+
+    function escapeHTML(value = "") {
+
+      return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      })[char]);
+
+    }
+
+
+    /* =========================================
+       SESSION VALIDATION
+    ========================================= */
+
+    const session = getActiveSession();
+
+    const roleHome = {
+      "User": "./user-dashboard.html",
+      "Sub Admin": "../subadmin/subadmin-dashboard.html",
+      "Super Admin": "../superadmin/superadmin-dashboard.html"
+    };
+
+    if (!session) {
+
+      window.location.replace("../../login.html");
+
+      throw new Error(
+        "ECOSORT: Session tidak ditemukan."
+      );
+
+    }
+
+    if (session.role !== "User") {
+
+      window.location.replace(
+        roleHome[session.role] || "../../login.html"
+      );
+
+      throw new Error(
+        "ECOSORT: Role tidak sesuai."
+      );
+
+    }
+
+
+    /* =========================================
+       ROOT ELEMENT
+    ========================================= */
+
+    const root = document.getElementById("app-root");
+
+    if (!root) {
+
+      throw new Error(
+        "ECOSORT: App root tidak ditemukan."
+      );
+
+    }
+
+
+    /* =========================================
+       NAVIGATION CONFIGURATION
+    ========================================= */
+
+    const PAGE_ROUTES = {
+
+      dashboard: "./user-dashboard.html",
+
+      classify: "./user-classification.html",
+
+      history: "./user-history.html",
+
+      profile: "./user-profile.html",
+
+      settings: "../settings.html"
+
+    };
+
+    const allowedPages = allowedPagesForRole("User");
+
+    let sidebarOpen = false;
+
+    let removeHeaderEvents = () => {};
+
+
+    function navigate(page) {
+
+      if (!allowedPages.has(page)) {
+        return false;
+      }
+
+      const destination = PAGE_ROUTES[page];
+
+      if (!destination) {
+        return false;
+      }
+
+      const target = new URL(
+        destination,
+        window.location.href
+      );
+
+      target.hash = `app/${page}`;
+
+      window.location.assign(target.href);
+
+      return true;
+
+    }
+
+
+    /* =========================================
+       LOGOUT
+    ========================================= */
+
+    async function handleLogout() {
+      const confirmed = await confirmLogout();
+      if (!confirmed) return;
+
+      if (logout()) {
+        window.location.assign("../landing.html");
+      } else {
+        notify("Gagal keluar dari akun.", "error");
+      }
+    }
+
+
+    /* =========================================
+       CLASSIFICATION STATE
+    ========================================= */
+
+    const state = {
+
+      name: "",
+
+      description: "",
+
+      errors: {},
+
+      result: null,
+
+      processing: false,
+
+      saved: false,
+
+      showGuide: false,
+
+      saveLock: false
+
+    };
+
+
+    /* =========================================
+       TOAST NOTIFICATION
+    ========================================= */
+
+    let toastTimer = null;
+
+    function notify(message, tone = "success") {
+      showSharedToast(message, tone);
+    }
+
+
+    /* =========================================
+       CLASSIFICATION RESULT RENDERER
+    ========================================= */
+
+    function renderClassificationResult() {
+
+      const result = state.result;
+
+      if (!result) {
+        return "";
+      }
+
+      const matchedGuide = guideForClassification(
+        result,
+        `${state.name} ${state.description}`
+      );
+
+      const heading = result.category || result.title;
+
+      const resultTone = result.tone;
+
+      return `
+
+        <section
+          id="classification-result"
+          class="classification-result result-${result.status}"
+        >
+
+          <!-- RESULT HEADING -->
+
+          <div class="classification-result-heading">
+
+            <div class="result-burst tone-${resultTone}">
+
+              <div class="result-icon">
+                ${icon(result.icon, 38)}
+              </div>
+
+            </div>
+
+            <div>
+
+              <span class="kicker">
+                HASIL KLASIFIKASI
+              </span>
+
+              <h2>
+                ${escapeHTML(heading)}
+              </h2>
+
+              <p>
+                ${escapeHTML(result.description)}
+              </p>
+
+            </div>
+
+            <span class="confidence">
+              Aturan lokal EcoSort
+            </span>
+
+          </div>
+
+
+          <!-- RESULT DETAILS -->
+
+          <div class="result-card">
+
+            <div class="result-card-head">
+
+              <div>
+
+                ${badge(
+                  escapeHTML(heading.toUpperCase()),
+                  resultTone
+                )}
+
+                <h3>
+                  ${escapeHTML(result.title)}
+                </h3>
+
+              </div>
+
+            </div>
+
+
+            <!-- WASTE SUMMARY -->
+
+            <div class="waste-summary">
+
+              <div>
+
+                <span>NAMA SAMPAH</span>
+
+                <b>
+                  ${escapeHTML(state.name.trim())}
+                </b>
+
+              </div>
+
+              <div>
+
+                <span>RINGKASAN DESKRIPSI</span>
+
+                <p>
+                  ${escapeHTML(state.description.trim())}
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <!-- CLASSIFICATION REASON -->
+
+            <div class="classification-reason">
+
+              <span>
+                ${icon("search")}
+              </span>
+
+              <div>
+
+                <b>Alasan klasifikasi</b>
+
+                <p>
+                  ${escapeHTML(result.reason)}
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <!-- HANDLING RECOMMENDATION -->
+
+            <div class="handling-card">
+
+              <div class="handling-title">
+
+                <span>
+                  ${icon(result.icon)}
+                </span>
+
+                <div>
+
+                  <b>Cara penanganan</b>
+
+                  <p>
+                    Ikuti langkah yang sesuai dengan kondisi sampah.
+                  </p>
+
+                </div>
+
+              </div>
+
+              <ol>
+
+                ${result.handling.map(step => `
+
+                  <li>
+                    ${escapeHTML(step)}
+                  </li>
+
+                `).join("")}
+
+              </ol>
+
+            </div>
+
+
+            <!-- RESULT WARNING -->
+
+            ${
+              result.warning
+                ? `
+
+                  <div class="result-warning">
+
+                    ${icon("bell")}
+
+                    <p>
+                      ${escapeHTML(result.warning)}
+                    </p>
+
+                  </div>
+
+                `
+                : ""
+            }
+
+
+            <!-- RESULT TIP -->
+
+            <div class="result-tip">
+
+              <span>TIP</span>
+
+              <p>
+                ${escapeHTML(result.tip)}
+              </p>
+
+            </div>
+
+
+            <!-- HANDLING GUIDE -->
+
+            <div class="classification-guide">
+
+              <div class="classification-guide-head">
+
+                <span class="${
+                  matchedGuide
+                    ? `guide-${matchedGuide.tone}`
+                    : ""
+                }">
+
+                  ${icon(matchedGuide?.icon || "guides")}
+
+                </span>
+
+                <div>
+
+                  <small>
+                    PANDUAN PENANGANAN
+                  </small>
+
+                  <h3>
+
+                    ${
+                      matchedGuide
+                        ? escapeHTML(matchedGuide.name)
+                        : "Panduan yang sesuai belum tersedia"
+                    }
+
+                  </h3>
+
+                  <p>
+
+                    ${
+                      matchedGuide
+                        ? "Panduan dipilih berdasarkan kategori hasil klasifikasi di atas."
+                        : "Lengkapi informasi sampah atau lakukan klasifikasi ulang tanpa menebak kategorinya."
+                    }
+
+                  </p>
+
+                </div>
+
+                ${
+                  matchedGuide
+                    ? button(
+                        state.showGuide
+                          ? "Tutup Panduan"
+                          : "Lihat Panduan Penanganan",
+                        {
+                          variant: "outline",
+                          attributes: 'data-action="toggle-guide"'
+                        }
+                      )
+                    : ""
+                }
+
+              </div>
+
+
+              <!-- GUIDE DETAILS -->
+
+              ${
+                matchedGuide && state.showGuide
+                  ? `
+
+                    <div class="classification-guide-detail">
+
+                      ${
+                        matchedGuide.warning
+                          ? `
+
+                            <div class="guide-warning">
+
+                              ${icon("bell")}
+
+                              <div>
+
+                                <b>Perhatian</b>
+
+                                <p>
+                                  ${escapeHTML(matchedGuide.warning)}
+                                </p>
+
+                              </div>
+
+                            </div>
+
+                          `
+                          : ""
+                      }
+
+
+                      <h4>
+                        Langkah penanganan
+                      </h4>
+
+
+                      <ol class="guide-steps">
+
+                        ${matchedGuide.steps.map((step, index) => `
+
+                          <li>
+
+                            <span>
+                              ${index + 1}
+                            </span>
+
+                            <p>
+                              ${escapeHTML(step)}
+                            </p>
+
+                          </li>
+
+                        `).join("")}
+
+                      </ol>
+
+
+                      <!-- DOS AND DONTS -->
+
+                      <div class="guide-do-grid">
+
+                        <section class="guide-do">
+
+                          <h3>
+                            ${icon("check", 17)}
+                            Yang boleh dilakukan
+                          </h3>
+
+                          ${matchedGuide.dos.map(item => `
+
+                            <p>
+                              ${escapeHTML(item)}
+                            </p>
+
+                          `).join("")}
+
+                        </section>
+
+
+                        <section class="guide-dont">
+
+                          <h3>
+                            ${icon("close", 17)}
+                            Hindari
+                          </h3>
+
+                          ${matchedGuide.donts.map(item => `
+
+                            <p>
+                              ${escapeHTML(item)}
+                            </p>
+
+                          `).join("")}
+
+                        </section>
+
+                      </div>
+
+
+                      <!-- STORAGE GUIDE -->
+
+                      <section class="guide-storage">
+
+                        ${icon("dataset")}
+
+                        <div>
+
+                          <h3>
+                            Penyimpanan dan penyaluran
+                          </h3>
+
+                          <p>
+                            ${escapeHTML(matchedGuide.storage)}
+                          </p>
+
+                        </div>
+
+                      </section>
+
+                    </div>
+
+                  `
+                  : ""
+              }
+
+            </div>
+
+          </div>
+
+
+          <!-- RESULT ACTIONS -->
+
+          <div class="result-actions">
+
+            ${button(
+              "Klasifikasi Ulang",
+              {
+                variant: "outline",
+                attributes: 'data-action="reclassify"'
+              }
+            )}
+
+            ${
+              result.category
+                ? button(
+                    state.saved
+                      ? "Hasil Tersimpan"
+                      : "Simpan Hasil",
+                    {
+                      iconName: "history",
+                      disabled: state.saved,
+                      attributes: 'data-action="save-result"'
+                    }
+                  )
+                : ""
+            }
+
+            ${button(
+              "Cetak Hasil",
+              {
+                variant: "outline",
+                attributes: 'data-action="print-result"'
+              }
+            )}
+
+            ${
+              state.saved
+                ? button(
+                    "Lihat Riwayat",
+                    {
+                      variant: "ghost",
+                      attributes: 'data-action="view-history"'
+                    }
+                  )
+                : ""
+            }
+
+          </div>
+
+        </section>
+
+      `;
+
+    }
+
+
+    /* =========================================
+       UPDATE RESULT DISPLAY
+    ========================================= */
+
+    function updateResultDisplay() {
+
+      const host = document.getElementById(
+        "classification-result-host"
+      );
+
+      if (!host) return;
+
+      host.innerHTML = renderClassificationResult();
+
+    }
+
+
+    /* =========================================
+       FIELD VALIDATION
+    ========================================= */
+
+    function setFieldError(field, message = "") {
+
+      const errorElement = root.querySelector(
+        `[data-error="${field}"]`
+      );
+
+      const input = root.querySelector(
+        field === "name"
+          ? "#waste-name"
+          : "#waste-description"
+      );
+
+      if (!errorElement || !input) return;
+
+      errorElement.textContent = message;
+
+      errorElement.hidden = !message;
+
+      input.setAttribute(
+        "aria-invalid",
+        String(Boolean(message))
+      );
+
+      if (field === "name") {
+
+        root
+          .querySelector("[data-name-wrap]")
+          ?.classList.toggle(
+            "input-error",
+            Boolean(message)
+          );
+
+      }
+
+    }
+
+
+    function clearFieldError(field) {
+
+      state.errors[field] = "";
+
+      setFieldError(field, "");
+
+    }
+
+
+    /* =========================================
+       PROCESSING STATE
+    ========================================= */
+
+    function setProcessingUI(processing) {
+
+      const submitButton = root.querySelector(
+        '[data-action="submit-classification"]'
+      );
+
+      const resetButton = root.querySelector(
+        '[data-action="reset-form"]'
+      );
+
+      if (submitButton) {
+
+        submitButton.disabled = processing;
+
+        submitButton.setAttribute(
+          "aria-busy",
+          String(processing)
+        );
+
+        const label = submitButton.querySelector("span");
+
+        if (label) {
+
+          label.textContent = processing
+            ? "Memproses..."
+            : "Klasifikasikan Sampah";
+
+        }
+
+      }
+
+      if (resetButton) {
+        resetButton.disabled = processing;
+      }
+
+    }
+
+
+    /* =========================================
+       CLEAR RESULT
+    ========================================= */
+
+    function clearResult() {
+
+      state.result = null;
+
+      state.saved = false;
+
+      state.showGuide = false;
+
+      state.saveLock = false;
+
+      updateResultDisplay();
+
+    }
+
+
+    /* =========================================
+       RESET FORM
+    ========================================= */
+
+    function resetForm() {
+
+      if (state.processing) return;
+
+      const form = root.querySelector(
+        '[data-form="classification"]'
+      );
+
+      form?.reset();
+
+      state.name = "";
+
+      state.description = "";
+
+      state.errors = {};
+
+      state.result = null;
+
+      state.processing = false;
+
+      state.saved = false;
+
+      state.showGuide = false;
+
+      state.saveLock = false;
+
+      setFieldError("name", "");
+
+      setFieldError("description", "");
+
+      setProcessingUI(false);
+
+      updateResultDisplay();
+
+    }
+
+
+    /* =========================================
+       INPUT CHANGE
+    ========================================= */
+
+    function handleInputChange(field, value) {
+
+      state[field] = value;
+
+      if (state.errors[field]) {
+        clearFieldError(field);
+      }
+
+      if (state.result) {
+        clearResult();
+      }
+
+    }
+
+
+    /* =========================================
+       CLASSIFICATION SUBMISSION
+    ========================================= */
+
+    function submitClassification(event) {
+
+      event.preventDefault();
+
+      if (state.processing) return;
+
+      const nameInput = root.querySelector(
+        "#waste-name"
+      );
+
+      const descriptionInput = root.querySelector(
+        "#waste-description"
+      );
+
+      state.name = nameInput.value;
+
+      state.description = descriptionInput.value;
+
+      const name = state.name.trim();
+
+      const description = state.description.trim();
+
+      const errors = {};
+
+      if (!name) {
+
+        errors.name = "Nama sampah wajib diisi.";
+
+      }
+
+      if (!description) {
+
+        errors.description = "Deskripsi sampah wajib diisi.";
+
+      }
+
+      state.errors = errors;
+
+      setFieldError(
+        "name",
+        errors.name || ""
+      );
+
+      setFieldError(
+        "description",
+        errors.description || ""
+      );
+
+      if (Object.keys(errors).length) {
+
+        notify(
+          "Lengkapi nama dan deskripsi sampah",
+          "error"
+        );
+
+        return;
+
+      }
+
+      state.processing = true;
+
+      state.saved = false;
+
+      state.showGuide = false;
+
+      state.saveLock = false;
+
+      setProcessingUI(true);
+
+      window.setTimeout(() => {
+
+        state.result = classifyWaste(
+          name,
+          description
+        );
+
+        state.processing = false;
+
+        setProcessingUI(false);
+
+        updateResultDisplay();
+
+        window.requestAnimationFrame(() => {
+
+          document
+            .querySelector("#classification-result")
+            ?.scrollIntoView({
+              behavior: "smooth",
+              block: "start"
+            });
+
+        });
+
+      }, 450);
+
+    }
+
+
+    /* =========================================
+       SAVE CLASSIFICATION RESULT
+    ========================================= */
+
+    function saveResult() {
+
+      const result = state.result;
+
+      if (
+        !result?.category ||
+        state.saved ||
+        state.saveLock
+      ) {
+        return;
+      }
+
+      state.saveLock = true;
+
+      const timestamp = Date.now();
+
+      const record = {
+
+        id: timestamp,
+
+        ownerEmail: session.email,
+
+        name: state.name.trim(),
+
+        description: state.description.trim(),
+
+        date: new Intl.DateTimeFormat("id-ID", {
+          dateStyle: "medium",
+          timeStyle: "short"
+        }).format(timestamp),
+
+        timestamp,
+
+        category: result.category,
+
+        tone: result.tone,
+
+        icon: result.icon,
+
+        reason: result.reason,
+
+        recommendation: result.handling.join(" "),
+
+        handling: result.handling,
+
+        tip: result.tip
+
+      };
+
+      try {
+
+        const current = readLocal(
+          "history-v2",
+          []
+        );
+
+        const history = Array.isArray(current)
+          ? current
+          : [];
+
+        writeLocal(
+          "history-v2",
+          [record, ...history]
+        );
+
+        state.saved = true;
+
+        notify(
+          "Hasil tersimpan secara lokal di perangkat ini"
+        );
+
+        updateResultDisplay();
+
+      } catch (error) {
+
+        state.saveLock = false;
+
+        console.error(
+          "ECOSORT: Gagal menyimpan riwayat.",
+          error
+        );
+
+        notify(
+          "Hasil gagal disimpan. Periksa penyimpanan browser.",
+          "error"
+        );
+
+      }
+
+    }
+
+
+    /* =========================================
+       RENDER APPLICATION
+    ========================================= */
+
+    function renderApplication() {
+
+      root.innerHTML = `
+
+        <div class="app-shell">
+
+          ${renderSidebar({
+            role: "User",
+            page: "classify",
+            open: sidebarOpen
+          })}
+
+
+          <div class="app-main">
+
+            ${renderHeader({
+              role: "User"
+            })}
+
+
+            <main class="classify-main">
+
+              <div class="classification-wrap">
+
+                <!-- CLASSIFICATION HERO -->
+
+                <div class="classification-hero">
+
+                  <div>
+
+                    <span class="kicker">
+                      KLASIFIKASI BERBASIS ATURAN
+                    </span>
+
+                    <h1>
+                      Klasifikasi Sampah
+                    </h1>
+
+                    <p>
+                      Kenali jenis sampahmu dan temukan cara
+                      penanganan yang tepat untuk menjaga lingkungan.
+                    </p>
+
+                  </div>
+
+                  <div class="classification-hero-icon">
+
+                    ${icon("logo", 42)}
+
+                    <span></span>
+
+                  </div>
+
+                </div>
+
+
+                <!-- CLASSIFICATION FORM -->
+
+                <form
+                  class="classification-form-card"
+                  data-form="classification"
+                  novalidate
+                >
+
+                  <div class="classification-form-head">
+
+                    <span class="classification-form-icon">
+                      ${icon("edit")}
+                    </span>
+
+                    <div>
+
+                      <h2>
+                        Informasi sampah
+                      </h2>
+
+                      <p>
+                        Jelaskan sampah secara spesifik agar hasil lebih relevan.
+                      </p>
+
+                    </div>
+
+                  </div>
+
+
+                  <!-- WASTE NAME -->
+
+                  <label class="classification-field">
+
+                    <span>
+                      Nama Sampah <i>*</i>
+                    </span>
+
+                    <div
+                      class="input-wrap"
+                      data-name-wrap
+                    >
+
+                      ${icon("waste", 18)}
+
+                      <input
+                        type="text"
+                        id="waste-name"
+                        name="name"
+                        placeholder="Contoh: Kulit Pisang"
+                        autocomplete="off"
+                        aria-invalid="false"
+                      >
+
+                    </div>
+
+                    <small
+                      class="field-error"
+                      data-error="name"
+                      hidden
+                    ></small>
+
+                  </label>
+
+
+                  <!-- WASTE DESCRIPTION -->
+
+                  <label class="classification-field">
+
+                    <span>
+                      Deskripsi Sampah <i>*</i>
+                    </span>
+
+                    <textarea
+                      id="waste-description"
+                      name="description"
+                      placeholder="Jelaskan bahan, kondisi, dan karakteristik sampah. Contoh: Kulit pisang sisa makanan, masih basah, dan tidak tercampur bahan kimia."
+                      aria-invalid="false"
+                    ></textarea>
+
+                    <small class="classification-help">
+
+                      Sertakan bahan utama, kondisi, tingkat kebersihan,
+                      kontaminasi, dan apakah tercampur bahan lain.
+
+                    </small>
+
+                    <small
+                      class="field-error"
+                      data-error="description"
+                      hidden
+                    ></small>
+
+                  </label>
+
+
+                  <!-- FORM ACTIONS -->
+
+                  <div class="classification-form-actions">
+
+                    ${button(
+                      "Klasifikasikan Sampah",
+                      {
+                        type: "submit",
+                        iconName: "classify",
+                        attributes: 'data-action="submit-classification"'
+                      }
+                    )}
+
+                    ${button(
+                      "Reset Formulir",
+                      {
+                        variant: "outline",
+                        attributes: 'data-action="reset-form"'
+                      }
+                    )}
+
+                  </div>
+
+                </form>
+
+
+                <!-- SAFETY NOTICE -->
+
+                <div class="b3-inline">
+
+                  <span>!</span>
+
+                  <p>
+
+                    <b>Catatan keamanan</b>
+
+                    Baterai, lampu, obat, bahan kimia, limbah
+                    elektronik, dan benda tajam memerlukan
+                    jalur pengelolaan khusus.
+
+                  </p>
+
+                </div>
+
+
+                <!-- RESULT CONTAINER -->
+
+                <div id="classification-result-host"></div>
+
+              </div>
+
+            </main>
+
+          </div>
+
+
+          <!-- MOBILE SIDEBAR OVERLAY -->
+
+          <div
+            class="side-overlay"
+            data-action="close-overlay"
+            style="display:none"
+          ></div>
+
+        </div>
+
+
+        <!-- TOAST ROOT -->
+
+        <div id="toast-root"></div>
+
+      `;
+
+
+      /* =====================================
+         SIDEBAR
+      ===================================== */
+
+      const sidebar = root.querySelector(".sidebar");
+
+      const overlay = root.querySelector(".side-overlay");
+
+      function setSidebarOpen(open) {
+
+        sidebarOpen = Boolean(open);
+
+        sidebar.classList.toggle(
+          "sidebar-open",
+          sidebarOpen
+        );
+
+        overlay.style.display = sidebarOpen
+          ? "block"
+          : "none";
+
+      }
+
+      bindSidebar(sidebar, {
+
+        setPage: navigate,
+
+        setOpen: setSidebarOpen,
+
+        onLogout: handleLogout
+
+      });
+
+      overlay.addEventListener(
+        "click",
+        () => setSidebarOpen(false)
+      );
+
+
+      /* =====================================
+         HEADER
+      ===================================== */
+
+      const header = root.querySelector(".app-header");
+
+      removeHeaderEvents = bindHeader(header, {
+
+        role: "User",
+
+        onMenu: () => setSidebarOpen(true),
+
+        onNavigate: navigate
+
+      });
+
+
+      /* =====================================
+         CLASSIFICATION FORM
+      ===================================== */
+
+      const form = root.querySelector(
+        '[data-form="classification"]'
+      );
+
+      const nameInput = root.querySelector(
+        "#waste-name"
+      );
+
+      const descriptionInput = root.querySelector(
+        "#waste-description"
+      );
+
+      form.addEventListener(
+        "submit",
+        submitClassification
+      );
+
+      nameInput.addEventListener("input", event => {
+
+        handleInputChange(
+          "name",
+          event.target.value
+        );
+
+      });
+
+      descriptionInput.addEventListener("input", event => {
+
+        handleInputChange(
+          "description",
+          event.target.value
+        );
+
+      });
+
+    }
+
+
+    /* =========================================
+       GLOBAL ACTION HANDLER
+    ========================================= */
+
+    function handleRootClick(event) {
+
+      const action = event.target.closest("[data-action]");
+
+      if (!action || !root.contains(action)) {
+        return;
+      }
+
+      switch (action.dataset.action) {
+
+        case "reset-form":
+
+          resetForm();
+
+          break;
+
+
+        case "toggle-guide":
+
+          state.showGuide = !state.showGuide;
+
+          updateResultDisplay();
+
+          break;
+
+
+        case "save-result":
+
+          saveResult();
+
+          break;
+
+
+        case "reclassify":
+
+          clearResult();
+
+          window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+          });
+
+          break;
+
+
+        case "print-result":
+
+          window.print();
+
+          break;
+
+
+        case "view-history":
+
+          navigate("history");
+
+          break;
+
+
+        case "dismiss-toast":
+
+          if (toastTimer) {
+            window.clearTimeout(toastTimer);
+          }
+
+          const toastHost = document.getElementById(
+            "toast-root"
+          );
+
+          if (toastHost) {
+            toastHost.innerHTML = "";
+          }
+
+          break;
+
+
+        case "close-overlay":
+
+          root.querySelector(".sidebar")
+            ?.classList.remove("sidebar-open");
+
+          const overlay = root.querySelector(".side-overlay");
+
+          if (overlay) {
+            overlay.style.display = "none";
+          }
+
+          sidebarOpen = false;
+
+          break;
+
+      }
+
+    }
+
+
+    /* =========================================
+       INITIALIZATION
+    ========================================= */
+
+    const requestedPage = pageFromHash();
+
+    if (
+      requestedPage &&
+      requestedPage !== "classify"
+    ) {
+
+      navigate(requestedPage);
+
+    } else {
+
+      if (!requestedPage) {
+
+        window.history.replaceState(
+          null,
+          "",
+          "#app/classify"
+        );
+
+      }
+
+      renderApplication();
+
+      root.addEventListener(
+        "click",
+        handleRootClick
+      );
+
+    }
+
+
+    /* =========================================
+       CLEANUP
+    ========================================= */
+
+    window.addEventListener(
+      "pagehide",
+      () => {
+
+        removeHeaderEvents();
+
+        if (toastTimer) {
+          window.clearTimeout(toastTimer);
+        }
+
+      },
+      { once: true }
+    );
+
+  </script>
+
+</body>
+</html>

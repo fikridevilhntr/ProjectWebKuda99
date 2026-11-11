@@ -1,0 +1,585 @@
+
+/* ============================================
+   ECOSORT
+   AUTHENTICATION STYLESHEET
+   Source: src/index.css
+============================================ */
+
+/* ============================================
+   AUTHENTICATION LAYOUT
+============================================ */
+
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 43% 57%;
+  background: #fff;
+}
+
+.auth-brand {
+  background:
+    linear-gradient(
+      150deg,
+      rgba(13,76,41,.94),
+      rgba(22,101,52,.82)
+    ),
+    url('../assets/images/ecosort-waste-collection.jpg')
+    center/cover no-repeat;
+
+  padding: 42px 55px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-brand:before,
+.auth-brand:after {
+  content: "";
+  position: absolute;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 50%;
+}
+
+.auth-brand:before {
+  width: 550px;
+  height: 550px;
+  bottom: -230px;
+  right: -230px;
+}
+
+.auth-brand:after {
+  width: 330px;
+  height: 330px;
+  bottom: -120px;
+  right: -110px;
+}
+
+/* ============================================
+   AUTHENTICATION QUOTE
+============================================ */
+
+.auth-quote {
+  margin-top: 16vh;
+  position: relative;
+  max-width: 420px;
+  z-index: 2;
+}
+
+.quote-mark {
+  font-family: serif;
+  font-size: 70px;
+  color: #4ade80;
+  line-height: .5;
+}
+
+.auth-quote h2 {
+  font-size: 29px;
+  line-height: 1.35;
+  letter-spacing: -.8px;
+}
+
+.auth-quote p {
+  color: #bbf7d0;
+}
+
+/* ============================================
+   AUTHENTICATION ART
+============================================ */
+
+.auth-art {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.auth-circle {
+  width: 160px;
+  height: 160px;
+  background: rgba(255,255,255,.09);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #86efac;
+}
+
+.auth-copy {
+  font-size: 11px;
+  color: #82b893;
+  z-index: 2;
+}
+
+/* ============================================
+   AUTHENTICATION FORM LAYOUT
+============================================ */
+
+.auth-form-wrap {
+  display: grid;
+  place-items: center;
+  padding: 50px;
+}
+
+.auth-form {
+  width: min(420px,100%);
+}
+
+.auth-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--primary);
+  letter-spacing: .14em;
+}
+
+.auth-form h1 {
+  font-size: 31px;
+  letter-spacing: -1.2px;
+  margin: 12px 0 10px;
+}
+
+.auth-form > p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 28px;
+}
+
+/* ============================================
+   FORM FIELDS
+============================================ */
+
+.field {
+  display: block;
+  margin-bottom: 17px;
+}
+
+.field > span {
+  display: block;
+  font-size: 12px;
+  font-weight: 650;
+  color: #334155;
+  margin-bottom: 7px;
+}
+
+.input-wrap {
+  height: 46px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  padding: 0 13px;
+  gap: 10px;
+  color: #94a3b8;
+  background: #fff;
+}
+
+.input-wrap:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px #dcfce7;
+}
+
+.input-wrap input {
+  border: 0;
+  outline: 0;
+  width: 100%;
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* ============================================
+   FORM META
+============================================ */
+
+.form-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: -3px 0 19px;
+  font-size: 12px;
+}
+
+.form-meta label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #475569;
+}
+
+.form-meta button,
+.auth-switch button {
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+/* ============================================
+   ROLE PICKER
+============================================ */
+
+.role-picker {
+  padding: 11px;
+  border-radius: 10px;
+  background: #f8fafc;
+  margin-bottom: 16px;
+}
+
+.role-picker > span {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  display: block;
+  margin-bottom: 7px;
+}
+
+.role-picker > div {
+  display: flex;
+  gap: 5px;
+}
+
+.role-picker button {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 10px;
+  color: #64748b;
+}
+
+.role-picker button.active {
+  background: var(--soft-green);
+  border-color: #86efac;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* ============================================
+   AUTHENTICATION SWITCH
+============================================ */
+
+.auth-switch {
+  text-align: center;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 22px;
+}
+
+.mobile-auth-logo {
+  display: none;
+}
+
+/* ============================================
+   SUPERADMIN ENTRY
+============================================ */
+
+.superadmin-entry {
+  margin: 15px auto 0;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.superadmin-entry:hover {
+  color: var(--primary);
+}
+
+/* ============================================
+   SUPERADMIN AUTHENTICATION
+============================================ */
+
+.superadmin-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(340px,42%) 1fr;
+  background: #f7faf8;
+}
+
+.superadmin-aside {
+  position: relative;
+  overflow: hidden;
+  padding: 42px 54px;
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(11,61,34,.94),
+      rgba(22,101,52,.84) 68%,
+      rgba(25,115,60,.76)
+    ),
+    url('../assets/images/ecosort-waste-collection.jpg')
+    center/cover no-repeat;
+}
+
+.superadmin-aside:before,
+.superadmin-aside:after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.1);
+}
+
+.superadmin-aside:before {
+  width: 560px;
+  height: 560px;
+  right: -310px;
+  bottom: -250px;
+}
+
+.superadmin-aside:after {
+  width: 280px;
+  height: 280px;
+  right: -80px;
+  top: -110px;
+}
+
+.superadmin-aside-copy {
+  margin: auto 0;
+  max-width: 440px;
+  position: relative;
+  z-index: 1;
+}
+
+.superadmin-badge {
+  width: max-content;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.08);
+  border-radius: 30px;
+  font-size: 9px;
+  letter-spacing: .13em;
+  font-weight: 800;
+  color: #bbf7d0;
+}
+
+.superadmin-aside h2 {
+  font-size: 38px;
+  line-height: 1.18;
+  letter-spacing: -1.7px;
+  margin: 24px 0 16px;
+}
+
+.superadmin-aside p {
+  font-size: 14px;
+  line-height: 1.75;
+  color: #bde4c9;
+  max-width: 390px;
+}
+
+/* ============================================
+   SUPERADMIN MAIN
+============================================ */
+
+.superadmin-main {
+  display: grid;
+  place-items: center;
+  padding: 45px 28px;
+}
+
+.superadmin-card {
+  width: min(440px,100%);
+  background: #fff;
+  border: 1px solid #e5eee8;
+  border-radius: 20px;
+  padding: 38px;
+  box-shadow: 0 22px 60px rgba(18,77,42,.09);
+}
+
+.superadmin-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 13px;
+  background: #dcfce7;
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+  margin-bottom: 21px;
+}
+
+.superadmin-card h1 {
+  font-size: 31px;
+  letter-spacing: -1.2px;
+  margin: 10px 0 7px;
+}
+
+.superadmin-card > p {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.superadmin-divider {
+  height: 1px;
+  background: #edf2ef;
+  margin: 25px 0;
+}
+
+.superadmin-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 12px;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 9px;
+  line-height: 1.55;
+  margin: 2px 0 16px;
+}
+
+.superadmin-notice .icon {
+  color: var(--primary);
+}
+
+/* ============================================
+   BACK HOME
+============================================ */
+
+.back-home {
+  width: 100%;
+  height: 42px;
+  border: 0;
+  background: transparent;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 650;
+  margin-top: 8px;
+}
+
+.back-home .icon {
+  transform: rotate(180deg);
+}
+
+.back-home:hover {
+  color: var(--primary);
+}
+
+/* ============================================
+   SUPERADMIN LOGIN LINK
+============================================ */
+
+.superadmin-login-link {
+  text-align: center;
+  border-top: 1px solid #edf2ef;
+  margin-top: 4px;
+  padding-top: 18px;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.superadmin-login-link button {
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.superadmin-mobile-logo {
+  display: none;
+}
+
+/* ============================================
+   AUTHENTICATION DIVIDER
+============================================ */
+
+.auth-divider {
+  height: 1px;
+  background: var(--line);
+  position: relative;
+  margin: 22px 0;
+}
+
+.auth-divider span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+  background: #fff;
+  color: #94a3b8;
+  padding: 0 10px;
+  font-size: 10px;
+}
+
+/* ============================================
+   GOOGLE BUTTON
+============================================ */
+
+.google-button {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.google-button:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+
+/* ============================================
+   ECOSORT - PASSWORD VISIBILITY BUTTON
+   Restored from original target design
+============================================ */
+
+.field-action {
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ============================================
+   ECOSORT - LOGIN FORM VALIDATION
+   Menyamakan tampilan dengan desain referensi
+============================================ */
+
+/* Border merah pada input yang tidak valid */
+.auth-form .input-wrap.input-error,
+.auth-form .input-wrap.input-error:focus-within {
+    border: 1px solid #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.13) !important;
+}
+
+/* Pesan kesalahan di bawah input */
+.auth-form .field-error {
+    display: block;
+    margin: 5px 2px 0;
+    color: #ef4444;
+    font-size: 9px;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+/* Transisi border */
+.auth-form .input-wrap {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}

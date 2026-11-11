@@ -1,0 +1,723 @@
+
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta name="theme-color" content="#166534">
+
+  <meta
+    name="description"
+    content="EcoSort membantu Anda mengenali kategori sampah dan memberikan rekomendasi penanganan yang tepat."
+  >
+
+  <title>EcoSort - Klasifikasi Cerdas untuk Lingkungan</title>
+
+  <link
+    rel="icon"
+    type="image/svg+xml"
+    href="../assets/icon/favicon.svg"
+  >
+
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+
+<body>
+
+<div class="public" id="top">
+
+  <!-- NAVIGATION -->
+
+  <nav class="public-nav">
+
+    <div class="logo">
+
+      <span class="logo-mark">
+
+        <svg
+          class="icon"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 3c-1 4.8-4.8 5.6-7.3 6.7C2.3 10.8 2.1 14.4 4 16c2.4 2.1 6.6 1.3 8.2-2.4C13.4 11 12.7 7.2 12 3Z"/>
+          <path d="M5 19c2.8-5.6 6.2-8.3 12-10"/>
+          <path d="M14 14c1.7-1.4 3.8-1.3 5.1-.6 2.1 1.2 2.5 4.3.8 6.1-1.5 1.5-4.2 1.7-5.8.2-1.2-1.2-1.3-3-.1-5.7Z"/>
+        </svg>
+
+      </span>
+
+      <span>EcoSort</span>
+
+    </div>
+
+    <div class="nav-links">
+
+      <a href="#cara-kerja">Cara Kerja</a>
+
+      <a href="#kategori">Kategori</a>
+
+      <a href="#tentang">Tentang</a>
+
+    </div>
+
+    <a
+      href="./login.html"
+      class="btn btn-primary"
+    >
+      Masuk
+    </a>
+
+  </nav>
+
+
+  <main>
+
+    <!-- HERO SECTION -->
+
+    <section class="hero">
+
+      <div class="hero-copy">
+
+        <div class="eyebrow">
+
+          <span></span>
+
+          Klasifikasi cerdas untuk lingkungan
+
+        </div>
+
+        <h1>
+          Kenali sampahmu,
+          <br>
+          <em>pilah dengan tepat.</em>
+        </h1>
+
+        <p>
+          EcoSort membantu Anda mengenali kategori sampah berdasarkan
+          karakteristiknya dan memberi rekomendasi penanganan yang mudah
+          dipahami.
+        </p>
+
+        <div class="hero-actions">
+
+          <button
+            class="btn btn-primary"
+            type="button"
+            data-action="start-classification"
+          >
+
+            <svg
+              class="icon"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M5 12h14M13 6l6 6-6 6"/>
+            </svg>
+
+            <span>Mulai klasifikasi</span>
+
+          </button>
+
+          <button
+            class="btn btn-outline"
+            id="learnBtn"
+            type="button"
+          >
+            Pelajari cara kerja
+          </button>
+
+        </div>
+
+        <div class="trust-row">
+
+          <span>
+
+            <svg class="icon" width="16" height="16" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="m5 12 4 4L19 6"/>
+            </svg>
+
+            Tanpa unggah gambar
+
+          </span>
+
+          <span>
+
+            <svg class="icon" width="16" height="16" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="m5 12 4 4L19 6"/>
+            </svg>
+
+            Mudah digunakan
+
+          </span>
+
+          <span>
+
+            <svg class="icon" width="16" height="16" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="m5 12 4 4L19 6"/>
+            </svg>
+
+            Gratis
+
+          </span>
+
+        </div>
+
+      </div>
+
+
+      <!-- HERO ILLUSTRATION -->
+
+      <div class="hero-visual">
+
+        <div class="orbit orbit-one"></div>
+
+        <div class="orbit orbit-two"></div>
+
+        <div class="eco-illustration">
+
+          <div class="leaf leaf-a"></div>
+
+          <div class="leaf leaf-b"></div>
+
+          <div class="bin">
+
+            <div class="bin-lid"></div>
+
+            <svg
+              class="icon"
+              width="58"
+              height="58"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3c-1 4.8-4.8 5.6-7.3 6.7C2.3 10.8 2.1 14.4 4 16c2.4 2.1 6.6 1.3 8.2-2.4C13.4 11 12.7 7.2 12 3Z"/>
+              <path d="M5 19c2.8-5.6 6.2-8.3 12-10"/>
+              <path d="M14 14c1.7-1.4 3.8-1.3 5.1-.6 2.1 1.2 2.5 4.3.8 6.1-1.5 1.5-4.2 1.7-5.8.2-1.2-1.2-1.3-3-.1-5.7Z"/>
+            </svg>
+
+          </div>
+
+
+          <div class="float-card float-top">
+
+            <span class="float-icon green">
+
+              <svg class="icon" width="18" height="18"
+                viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round"
+                aria-hidden="true">
+                <path d="m5 12 4 4L19 6"/>
+              </svg>
+
+            </span>
+
+            <span>
+              <b>Organik</b>
+              <small>Mudah terurai</small>
+            </span>
+
+          </div>
+
+
+          <div class="float-card float-bottom">
+
+            <span class="float-icon blue">
+
+              <svg class="icon" width="18" height="18"
+                viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round"
+                aria-hidden="true">
+                <path d="M3 6h18"/>
+                <path d="M8 6V4h8v2M19 6l-1 15H6L5 6"/>
+                <path d="M10 11v5M14 11v5"/>
+              </svg>
+
+            </span>
+
+            <span>
+              <b>Anorganik</b>
+              <small>Dapat didaur ulang</small>
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- HOW IT WORKS -->
+
+    <section
+      class="process-section"
+      id="cara-kerja"
+    >
+
+      <div class="section-heading">
+
+        <span class="kicker">
+          PROSES SEDERHANA
+        </span>
+
+        <h2>
+          Empat langkah menuju pemilahan yang tepat
+        </h2>
+
+        <p>
+          Jawab beberapa pertanyaan singkat. Decision Tree kami membantu
+          menentukan kategori dan penanganannya.
+        </p>
+
+      </div>
+
+
+      <div class="process-grid">
+
+
+        <!-- STEP 1 -->
+
+        <div class="process-card">
+
+          <span class="step-number">01</span>
+
+          <div class="process-icon p0">
+
+            <svg class="icon" width="25" height="25"
+              viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M12 3c-1 4.8-4.8 5.6-7.3 6.7C2.3 10.8 2.1 14.4 4 16c2.4 2.1 6.6 1.3 8.2-2.4C13.4 11 12.7 7.2 12 3Z"/>
+              <path d="M5 19c2.8-5.6 6.2-8.3 12-10"/>
+              <path d="M14 14c1.7-1.4 3.8-1.3 5.1-.6 2.1 1.2 2.5 4.3.8 6.1-1.5 1.5-4.2 1.7-5.8.2-1.2-1.2-1.3-3-.1-5.7Z"/>
+            </svg>
+
+          </div>
+
+          <h3>Bahan penyusun</h3>
+
+          <p>
+            Pilih bahan utama penyusun sampah.
+          </p>
+
+        </div>
+
+
+        <!-- STEP 2 -->
+
+        <div class="process-card">
+
+          <span class="step-number">02</span>
+
+          <div class="process-icon p1">
+
+            <svg class="icon" width="25" height="25"
+              viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M3 6h18"/>
+              <path d="M8 6V4h8v2M19 6l-1 15H6L5 6"/>
+              <path d="M10 11v5M14 11v5"/>
+            </svg>
+
+          </div>
+
+          <h3>Jenis atau bentuk</h3>
+
+          <p>
+            Kenali bentuk dan penggunaan benda.
+          </p>
+
+        </div>
+
+
+        <!-- STEP 3 -->
+
+        <div class="process-card">
+
+          <span class="step-number">03</span>
+
+          <div class="process-icon p2">
+
+            <svg class="icon" width="25" height="25"
+              viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="m9 11 3 3L22 4"/>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
+
+          </div>
+
+          <h3>Kondisi sampah</h3>
+
+          <p>
+            Tentukan kebersihan atau kontaminasinya.
+          </p>
+
+        </div>
+
+
+        <!-- STEP 4 -->
+
+        <div class="process-card">
+
+          <span class="step-number">04</span>
+
+          <div class="process-icon p3">
+
+            <svg class="icon" width="25" height="25"
+              viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M12 7v5l3 2M3 12H1"/>
+            </svg>
+
+          </div>
+
+          <h3>Kemampuan terurai</h3>
+
+          <p>
+            Ketahui apakah dapat terurai alami.
+          </p>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- WASTE CATEGORY SECTION -->
+
+    <section
+      class="category-section"
+      id="kategori"
+    >
+
+      <div class="section-heading">
+
+        <span class="kicker">
+          KENALI KATEGORINYA
+        </span>
+
+        <h2>
+          Tiga kategori utama EcoSort
+        </h2>
+
+      </div>
+
+
+      <div class="category-grid">
+
+
+        <!-- ORGANIC CATEGORY -->
+
+        <article class="category-card organic">
+
+          <div class="category-symbol">
+
+            <svg class="icon" width="36" height="36"
+              viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M12 3c-1 4.8-4.8 5.6-7.3 6.7C2.3 10.8 2.1 14.4 4 16c2.4 2.1 6.6 1.3 8.2-2.4C13.4 11 12.7 7.2 12 3Z"/>
+              <path d="M5 19c2.8-5.6 6.2-8.3 12-10"/>
+              <path d="M14 14c1.7-1.4 3.8-1.3 5.1-.6 2.1 1.2 2.5 4.3.8 6.1-1.5 1.5-4.2 1.7-5.8.2-1.2-1.2-1.3-3-.1-5.7Z"/>
+            </svg>
+
+          </div>
+
+          <span class="badge badge-green">
+            <span class="badge-dot"></span>
+            ORGANIK
+          </span>
+
+          <h3>Kembali ke alam</h3>
+
+          <p>
+            Sisa buah, sayur, daun, dan bahan alami yang dapat terurai.
+          </p>
+
+          <button
+            class="category-link"
+            type="button"
+            data-action="guide"
+          >
+            Lihat panduan
+
+            <svg class="icon" width="16" height="16"
+              viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6"/>
+            </svg>
+
+          </button>
+
+        </article>
+
+
+        <!-- INORGANIC CATEGORY -->
+
+        <article class="category-card inorganic">
+
+          <div class="category-symbol">
+
+            <svg class="icon" width="36" height="36"
+              viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M3 6h18"/>
+              <path d="M8 6V4h8v2M19 6l-1 15H6L5 6"/>
+              <path d="M10 11v5M14 11v5"/>
+            </svg>
+
+          </div>
+
+          <span class="badge badge-blue">
+            <span class="badge-dot"></span>
+            ANORGANIK
+          </span>
+
+          <h3>Beri kesempatan kedua</h3>
+
+          <p>
+            Plastik, kaca, dan bahan non-alami yang berpotensi didaur ulang.
+          </p>
+
+          <button
+            class="category-link"
+            type="button"
+            data-action="guide"
+          >
+            Lihat panduan
+
+            <svg class="icon" width="16" height="16"
+              viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6"/>
+            </svg>
+
+          </button>
+
+        </article>
+
+
+        <!-- RESIDUE CATEGORY -->
+
+        <article class="category-card residue">
+
+          <div class="category-symbol">
+
+            <svg class="icon" width="36" height="36"
+              viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+
+          </div>
+
+          <span class="badge badge-gray">
+            <span class="badge-dot"></span>
+            RESIDU
+          </span>
+
+          <h3>Tangani dengan benar</h3>
+
+          <p>
+            Tisu bekas, popok, dan sampah terkontaminasi yang sulit diolah.
+          </p>
+
+          <button
+            class="category-link"
+            type="button"
+            data-action="guide"
+          >
+            Lihat panduan
+
+            <svg class="icon" width="16" height="16"
+              viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6"/>
+            </svg>
+
+          </button>
+
+        </article>
+
+      </div>
+
+
+      <!-- B3 WARNING -->
+
+      <div class="b3-note">
+
+        <span class="b3-icon">!</span>
+
+        <div>
+
+          <b>
+            Perhatian: Sampah B3 di luar cakupan model
+          </b>
+
+          <p>
+            Baterai, lampu, obat, dan limbah berbahaya memerlukan penanganan
+            khusus. Serahkan ke fasilitas pengelolaan B3 resmi.
+          </p>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- CALL TO ACTION SECTION -->
+
+    <section
+      class="cta-section"
+      id="tentang"
+    >
+
+      <div>
+
+        <span class="kicker light">
+          MULAI HARI INI
+        </span>
+
+        <h2>
+          Satu pilihan kecil,
+          <br>
+          dampak besar untuk bumi.
+        </h2>
+
+        <p>
+          Mulai klasifikasi dan temukan cara penanganan sampah yang tepat.
+        </p>
+
+      </div>
+
+      <button
+        class="btn btn-secondary"
+        type="button"
+        data-action="start-classification"
+      >
+
+        <svg class="icon" width="18" height="18"
+          viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round"
+          aria-hidden="true">
+          <path d="M5 12h14M13 6l6 6-6 6"/>
+        </svg>
+
+        <span>Coba EcoSort sekarang</span>
+
+      </button>
+
+    </section>
+
+  </main>
+
+
+  <!-- FOOTER -->
+
+  <footer>
+
+    <div class="logo logo-light">
+
+      <span class="logo-mark">
+
+        <svg
+          class="icon"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 3c-1 4.8-4.8 5.6-7.3 6.7C2.3 10.8 2.1 14.4 4 16c2.4 2.1 6.6 1.3 8.2-2.4C13.4 11 12.7 7.2 12 3Z"/>
+          <path d="M5 19c2.8-5.6 6.2-8.3 12-10"/>
+          <path d="M14 14c1.7-1.4 3.8-1.3 5.1-.6 2.1 1.2 2.5 4.3.8 6.1-1.5 1.5-4.2 1.7-5.8.2-1.2-1.2-1.3-3-.1-5.7Z"/>
+        </svg>
+
+      </span>
+
+      <span>EcoSort</span>
+
+    </div>
+
+    <p>
+      Teknologi sederhana untuk kebiasaan yang lebih baik.
+    </p>
+
+    <span>
+      © 2026 EcoSort
+    </span>
+
+  </footer>
+
+</div>
+
+
+<!-- APPLICATION JAVASCRIPT -->
+
+<script
+  type="module"
+  src="../js/core/app.js"
+></script>
+
+</body>
+</html>

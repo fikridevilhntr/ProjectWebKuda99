@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#166534">
+  <meta name="description" content="Pengaturan akun dan preferensi notifikasi EcoSort.">
+  <title>Pengaturan | EcoSort</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/icon/favicon.svg">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <div id="app-root"></div>
+  <noscript>Aktifkan JavaScript untuk menggunakan EcoSort.</noscript>
+
+  <script type="module">
+    import { showToast as showSharedToast, confirmLogout } from "../js/components/feedback.js";
+    import { getActiveSession, logout } from "../js/core/auth.js";
+    import { readLocal, writeLocal, STORAGE_PREFIX } from "../js/core/database.js";
+    import { allowedPagesForRole, pageFromHash } from "../js/core/router.js";
+    import { renderSidebar, bindSidebar, renderHeader, bindHeader } from "../js/core/layout.js";
+    import { icon } from "../js/core/icons.js";
+
+    const session = getActiveSession();
+
+    if (!session) {
+      window.location.replace("./login.html");
+      throw new Error("ECOSORT: Session tidak ditemukan.");
+    }
+
+    const role = session.role;
+    const allowedPages = allowedPagesForRole(role);
+
+    if (!allowedPages.has("settings")) {
+      const homes = {
+        User: "./user/user-dashboard.html",
+        "Sub Admin": "./subadmin/subadmin-dashboard.html",
+        "Super Admin": "./superadmin/superadmin-dashboard.html"
+      };
+
+      window.location.replace(homes[role] || "./login.html");
+      throw new Error("ECOSORT: Halaman pengaturan tidak diizinkan.");
+    }
+
+    const root = document.getElementById("app-root");
+    if (!root) throw new Error("ECOSORT: App root tidak ditemukan.");
+
+   
+    const PAGE_ROUTES = {
+
+    "User": {
+        dashboard: "./user/user-dashboard.html",
+        classify: "./user/user-classification.html",
+        history: "./user/user-history.html",
+        profile: "./user/user-profile.html",
+        settings: "./settings.html"
+    },
+
+    "Sub Admin": {
+        dashboard: "./subadmin/subadmin-dashboard.html",
+        waste: "./subadmin/subadmin-waste.html",
+        guides: "./subadmin/subadmin-guides.html",
+        reports: "./reports.html",
+        profile: "./user/user-profile.html",
+        settings: "./settings.html"
+    },
+
+    "Super Admin": {
+        dashboard: "./superadmin/superadmin-dashboard.html",
+        users: "./superadmin/superadmin-users.html",
+        waste: "./superadmin/superadmin-waste-page.html",
+        dataset: "./superadmin/superadmin-dataset-page.html",
+        model: "./superadmin/superadmin-model-page.html",
+        reports: "./reports.html",
+        profile: "./user/user-profile.html",
+        settings: "./settings.html"
+    }
+
+    };
+
+    const DEFAULT_PREFERENCES = {
+      classification: true,
+      tips: true,
+      system: false
+    };
+
+    const PREFERENCES_KEY = "preferences";
+    const legacyPreferencesKey =
+      `preferences:${String(session.email || "").trim().toLowerCase()}`;
+
+    function normalizePreferences(value) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return { ...DEFAULT_PREFERENCES };
+      }
+
+      return {
+        classification:
+          typeof value.classification === "boolean"
+            ? value.classification
+            : DEFAULT_PREFERENCES.classification,
+
+        tips:
+          typeof value.tips === "boolean"
+            ? value.tips
+            : DEFAULT_PREFERENCES.tips,
+
+        system:
+          typeof value.system === "boolean"
+            ? value.system
+            : DEFAULT_PREFERENCES.system
+      };
+    }
+
+    let preferences = normalizePreferences(
+      readLocal(
+        PREFERENCES_KEY,
+        readLocal(legacyPreferencesKey, DEFAULT_PREFERENCES)
+      )
+    );
+
+    let activeTab = 0;
+    let sidebarOpen = false;
+    let modalAction = null;
+    let toastTimer = null;
+    let removeHeaderEvents = () => {};
+
+    function escapeHTML(value = "") {
+      return String(value).replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      })[character]);
+    }
+
+    function navigate(page) {
+      if (!allowedPages.has(page)) {
+        showToast("Halaman tersebut tidak tersedia untuk peran ini.", "error");
+        return false;
+      }
+
+      const destination = PAGE_ROUTES[role]?.[page];
+
+      if (!destination) {
+        showToast("Rute halaman belum tersedia pada struktur proyek ini.", "error");
+        return false;
+      }
+
+      if (page === "settings") {
+        window.history.pushState(null, "", "#app/settings");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        setSidebarOpen(false);
+        return true;
+      }
+
+      const target = new URL(destination, window.location.href);
+      target.hash = `app/${page}`;
+      window.location.assign(target.href);
+
+      return true;
+    }
+
+    function showToast(message, tone = "success") {
+      showSharedToast(message, tone);
+    }
+
+    function renderToggle({ key, label, description }) {
+      const active = preferences[key];
+
+      return `
+        <button
+          type="button"
+          class="toggle-row"
+          role="switch"
+          aria-checked="${active}"
+          data-preference="${key}"
+        >
+          <span>
+            <b>${escapeHTML(label)}</b>
+            <small>${escapeHTML(description)}</small>
+          </span>
+
+          <i class="${active ? "on" : ""}" aria-hidden="true">
+            <em></em>
+          </i>
+        </button>
+      `;
+    }
+
+    function renderNotificationSettings() {
+      return `
+        <div class="panel-head">
+          <div>
+            <h3>Preferensi notifikasi</h3>
+            <p>Pilih informasi yang ingin Anda terima.</p>
+          </div>
+        </div>
+
+        ${renderToggle({
+          key: "classification",
+          label: "Hasil klasifikasi",
+          description: "Notifikasi saat hasil klasifikasi tersimpan."
+        })}
+
+        ${renderToggle({
+          key: "tips",
+          label: "Tips pengelolaan sampah",
+          description: "Saran dan edukasi pemilahan mingguan."
+        })}
+
+        ${renderToggle({
+          key: "system",
+          label: "Pembaruan sistem",
+          description: "Informasi perubahan fitur EcoSort."
+        })}
+      `;
+    }
+
+    function renderPrivacySettings() {
+      return `
+        <div class="panel-head">
+          <div>
+            <h3>Privasi &amp; keamanan</h3>
+            <p>Kelola data prototipe pada perangkat ini.</p>
+          </div>
+        </div>
+
+        <div class="privacy-card">
+          <div>
+            <b>Penyimpanan lokal</b>
+            <p>
+              Data CRUD, profil, dan riwayat
+              disimpan hanya di browser ini.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-danger"
+            data-action="open-clear-modal"
+          >
+            <span>Hapus data lokal</span>
+          </button>
+        </div>
+      `;
+    }
+
+    function renderSettingsPanel() {
+      const panel = root.querySelector(".settings-card");
+      if (!panel) return;
+
+      panel.innerHTML = `
+        ${
+          activeTab === 0
+            ? renderNotificationSettings()
+            : renderPrivacySettings()
+        }
+
+        <div class="settings-actions">
+          <button
+            type="button"
+            class="btn btn-primary"
+            data-action="save-preferences"
+          >
+            <span>Simpan perubahan</span>
+          </button>
+        </div>
+      `;
+
+      root.querySelectorAll("[data-settings-tab]").forEach(button => {
+        const selected =
+          Number(button.dataset.settingsTab) === activeTab;
+
+        button.classList.toggle("active", selected);
+        button.setAttribute("aria-selected", String(selected));
+      });
+    }
+
+    function setPreference(key) {
+      if (!Object.prototype.hasOwnProperty.call(DEFAULT_PREFERENCES, key)) {
+        return;
+      }
+
+      const previous = preferences;
+
+      preferences = {
+        ...preferences,
+        [key]: !preferences[key]
+      };
+
+      try {
+        writeLocal(PREFERENCES_KEY, preferences);
+        renderSettingsPanel();
+      } catch (error) {
+        preferences = previous;
+        renderSettingsPanel();
+
+        console.error("ECOSORT: Preferensi gagal disimpan.", error);
+        showToast("Preferensi gagal disimpan.", "error");
+      }
+    }
+
+    function savePreferences() {
+      try {
+        writeLocal(PREFERENCES_KEY, preferences);
+        showToast("Pengaturan berhasil disimpan.");
+      } catch (error) {
+        console.error("ECOSORT: Pengaturan gagal disimpan.", error);
+        showToast("Pengaturan gagal disimpan.", "error");
+      }
+    }
+
+    function renderConfirmModal(title) {
+      const modalRoot = root.querySelector("#modal-root");
+      if (!modalRoot) return;
+
+      modalRoot.innerHTML = `
+        <div
+          class="modal-backdrop"
+          data-modal-backdrop
+          role="presentation"
+        >
+          <form
+            class="modal"
+            data-form="confirmation"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+            novalidate
+          >
+            <div class="modal-head">
+              <div class="delete-icon">
+                ${icon("waste")}
+                <h3 id="modal-title">${escapeHTML(title)}</h3>
+                <p>
+                  Tindakan ini tidak dapat dibatalkan.
+                  Data akan dihapus dari penyimpanan lokal.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                data-action="close-modal"
+                aria-label="Tutup modal"
+              >
+                ${icon("close")}
+              </button>
+            </div>
+
+            <div class="modal-actions">
+              <button
+                type="button"
+                class="btn btn-outline"
+                data-action="close-modal"
+              >
+                <span>Batal</span>
+              </button>
+
+              <button type="submit" class="btn btn-danger">
+                <span>Ya, hapus</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      `;
+
+      const backdrop = modalRoot.querySelector("[data-modal-backdrop]");
+      const form = modalRoot.querySelector('[data-form="confirmation"]');
+
+      backdrop.addEventListener("mousedown", event => {
+        if (event.target === backdrop) closeModal();
+      });
+
+      form.addEventListener("mousedown", event => {
+        event.stopPropagation();
+      });
+
+      form.querySelector('[data-action="close-modal"]')?.focus();
+    }
+
+    function openModal(action, title) {
+      modalAction = action;
+      renderConfirmModal(title);
+    }
+
+    function closeModal() {
+      modalAction = null;
+
+      const modalRoot = root.querySelector("#modal-root");
+      if (modalRoot) modalRoot.innerHTML = "";
+    }
+
+    function clearPrototypeData() {
+      try {
+        Object.keys(window.localStorage)
+          .filter(key => key.startsWith(STORAGE_PREFIX))
+          .forEach(key => window.localStorage.removeItem(key));
+
+        closeModal();
+        showToast("Data prototipe lokal berhasil dihapus.");
+
+        window.setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      } catch (error) {
+        console.error("ECOSORT: Penghapusan data gagal.", error);
+        closeModal();
+        showToast("Data lokal gagal dihapus.", "error");
+      }
+    }
+
+    function confirmModalAction() {
+      const action = modalAction;
+
+      if (action === "clear") {
+        clearPrototypeData();
+        return;
+      }
+
+      if (action === "logout") {
+        closeModal();
+
+        if (logout()) {
+          window.location.assign("./landing.html");
+        } else {
+          showToast("Gagal mengakhiri sesi.", "error");
+        }
+      }
+    }
+
+    function setSidebarOpen(open) {
+      sidebarOpen = Boolean(open);
+
+      const sidebar = root.querySelector(".sidebar");
+      const overlay = root.querySelector(".side-overlay");
+
+      sidebar?.classList.toggle("sidebar-open", sidebarOpen);
+
+      if (overlay) {
+        overlay.style.display = sidebarOpen ? "block" : "none";
+        overlay.setAttribute("aria-hidden", String(!sidebarOpen));
+      }
+    }
+
+    async function handleLogout() {
+      const confirmed = await confirmLogout();
+      if (!confirmed) return;
+
+      if (logout()) {
+        window.location.assign("./landing.html");
+      } else {
+        showToast("Gagal keluar dari akun.", "error");
+      }
+    }
+
+    function handleClick(event) {
+      const tabButton = event.target.closest("[data-settings-tab]");
+
+      if (tabButton) {
+        activeTab = Number(tabButton.dataset.settingsTab);
+        renderSettingsPanel();
+        return;
+      }
+
+      const toggle = event.target.closest("[data-preference]");
+
+      if (toggle) {
+        setPreference(toggle.dataset.preference);
+        return;
+      }
+
+      const action = event.target.closest("[data-action]");
+      if (!action || !root.contains(action)) return;
+
+      switch (action.dataset.action) {
+        case "save-preferences":
+          savePreferences();
+          break;
+
+        case "open-clear-modal":
+          openModal("clear", "Hapus seluruh data prototipe?");
+          break;
+
+        case "close-modal":
+          closeModal();
+          break;
+
+        case "dismiss-toast": {
+          const toastRoot = root.querySelector("#toast-root");
+          if (toastRoot) toastRoot.innerHTML = "";
+
+          if (toastTimer) {
+            window.clearTimeout(toastTimer);
+            toastTimer = null;
+          }
+          break;
+        }
+
+        case "close-overlay":
+          setSidebarOpen(false);
+          break;
+      }
+    }
+
+    function handleSubmit(event) {
+      const form = event.target.closest('[data-form="confirmation"]');
+      if (!form || !root.contains(form)) return;
+
+      event.preventDefault();
+      confirmModalAction();
+    }
+
+    function handleKeydown(event) {
+      if (event.key === "Escape" && modalAction) {
+        closeModal();
+      }
+    }
+
+    function renderApplication() {
+      root.innerHTML = `
+        <div class="app-shell">
+          ${renderSidebar({
+            role,
+            page: "settings",
+            open: sidebarOpen
+          })}
+
+          <div class="app-main">
+            ${renderHeader({ role })}
+
+            <main>
+              <div class="page-title">
+                <div>
+                  <h1>Pengaturan</h1>
+                  <p>Atur notifikasi dan keamanan akun.</p>
+                </div>
+              </div>
+
+              <div class="settings-layout">
+                <nav
+                  class="settings-nav"
+                  aria-label="Navigasi pengaturan"
+                  role="tablist"
+                >
+                  <button
+                    type="button"
+                    class="active"
+                    data-settings-tab="0"
+                    role="tab"
+                    aria-selected="true"
+                  >
+                    Notifikasi ${icon("chevron", 15)}
+                  </button>
+
+                  <button
+                    type="button"
+                    data-settings-tab="1"
+                    role="tab"
+                    aria-selected="false"
+                  >
+                    Privasi &amp; keamanan ${icon("chevron", 15)}
+                  </button>
+                </nav>
+
+                <section
+                  class="panel settings-card"
+                  role="tabpanel"
+                ></section>
+              </div>
+            </main>
+          </div>
+
+          <div
+            class="side-overlay"
+            data-action="close-overlay"
+            aria-hidden="true"
+            style="display:none"
+          ></div>
+        </div>
+
+        <div id="modal-root"></div>
+        <div id="toast-root"></div>
+      `;
+
+      bindSidebar(root.querySelector(".sidebar"), {
+        setPage: navigate,
+        setOpen: setSidebarOpen,
+        onLogout: handleLogout
+      });
+
+      root.querySelector(".side-overlay")?.addEventListener(
+        "click",
+        () => setSidebarOpen(false)
+      );
+
+      removeHeaderEvents = bindHeader(
+        root.querySelector(".app-header"),
+        {
+          role,
+          onMenu: () => setSidebarOpen(true),
+          onNavigate: navigate
+        }
+      );
+
+      renderSettingsPanel();
+    }
+
+    root.addEventListener("click", handleClick);
+    root.addEventListener("submit", handleSubmit);
+    window.addEventListener("keydown", handleKeydown);
+
+    const requestedPage = pageFromHash();
+
+    if (requestedPage && requestedPage !== "settings") {
+      if (!navigate(requestedPage)) {
+        window.history.replaceState(null, "", "#app/settings");
+        renderApplication();
+      }
+    } else {
+      if (!requestedPage) {
+        window.history.replaceState(null, "", "#app/settings");
+      }
+
+      renderApplication();
+    }
+
+    window.addEventListener("pagehide", () => {
+      removeHeaderEvents();
+      window.removeEventListener("keydown", handleKeydown);
+
+      if (toastTimer) {
+        window.clearTimeout(toastTimer);
+      }
+    }, { once: true });
+  </script>
+</body>
+</html>

@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#166534">
+  <title>Profil Saya | EcoSort</title>
+  <link rel="icon" type="image/svg+xml" href="../../assets/icon/favicon.svg">
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <div id="app-root"></div>
+  <noscript>Aktifkan JavaScript untuk menggunakan EcoSort.</noscript>
+
+  <script type="module">
+    import { showToast as showSharedToast, confirmLogout as confirmLogoutDialog } from "../../js/components/feedback.js";
+    import { getActiveSession, logout } from "../../js/core/auth.js";
+    import { readLocal, writeLocal } from "../../js/core/database.js";
+    import { allowedPagesForRole, pageFromHash } from "../../js/core/router.js";
+    import { renderSidebar, bindSidebar, renderHeader, bindHeader } from "../../js/core/layout.js";
+    import { icon } from "../../js/core/icons.js";
+
+    const session = getActiveSession();
+    const role = session?.role;
+
+    const roleHome = {
+      User: "./user-dashboard.html",
+      "Sub Admin": "../subadmin/subadmin-dashboard.html",
+      "Super Admin": "../superadmin/superadmin-dashboard.html"
+    };
+
+    if (!session) {
+      window.location.replace("../login.html");
+      throw new Error("ECOSORT: Session tidak ditemukan.");
+    }
+
+    const root = document.getElementById("app-root");
+    if (!root) throw new Error("ECOSORT: App root tidak ditemukan.");
+
+    const allowedPages = allowedPagesForRole(role);
+
+    if (!allowedPages.has("profile")) {
+      window.location.replace(roleHome[role] || "../login.html");
+      throw new Error("ECOSORT: Role tidak valid.");
+    }
+
+    const sessionEmail = String(session.email || "").trim();
+    const normalizedEmail = (
+      sessionEmail ||
+      `demo-${String(role || "user").toLowerCase().replace(/\s+/g, "-")}`
+    ).toLowerCase();
+
+    const PAGE_ROUTES = {
+      User: {
+        dashboard: "./user-dashboard.html",
+        classify: "./user-classification.html",
+        history: "./user-history.html",
+        profile: "./user-profile.html",
+        settings: "../settings.html"
+      },
+
+      "Sub Admin": {
+        dashboard: "../subadmin/subadmin-dashboard.html",
+        waste: "../subadmin/subadmin-waste.html",
+        guides: "../subadmin/subadmin-guides.html",
+        reports: "../reports.html",
+        profile: "./user-profile.html",
+        settings: "../settings.html"
+      },
+
+      "Super Admin": {
+        dashboard: "../superadmin/superadmin-dashboard.html",
+        users: "../superadmin/superadmin-users.html",
+        waste: "../superadmin/superadmin-waste-page.html",
+        guides: "../superadmin/superadmin-guides-page.html",
+        dataset: "../superadmin/superadmin-dataset-page.html",
+        model: "../superadmin/superadmin-model-page.html",
+        reports: "../reports.html",
+        profile: "./user-profile.html",
+        settings: "../settings.html"
+      }
+    };
+
+    let activeTab = 0;
+    let sidebarOpen = false;
+    let toastTimer = null;
+    let removeHeaderEvents = () => {};
+    let confirmLogout = false;
+
+    function escapeHTML(value = "") {
+      return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      })[char]);
+    }
+
+    const registeredProfile = readLocal("prototype-profile", {});
+    const storedProfile = readLocal("profile", {});
+    const storedProfileOwner = String(
+      readLocal("profile-owner", "") || ""
+    ).trim().toLowerCase();
+
+    const registeredMatches =
+      registeredProfile &&
+      typeof registeredProfile === "object" &&
+      !Array.isArray(registeredProfile) &&
+      String(registeredProfile.email || "").trim().toLowerCase() === normalizedEmail;
+
+    const storedMatches =
+      storedProfile &&
+      typeof storedProfile === "object" &&
+      !Array.isArray(storedProfile) &&
+      (
+        storedProfileOwner === normalizedEmail ||
+        (
+          !storedProfileOwner &&
+          String(storedProfile.email || "").trim().toLowerCase() === normalizedEmail
+        )
+      );
+
+    const defaultNames = {
+      User: "Andi Nugraha",
+      "Sub Admin": "Sinta Aulia",
+      "Super Admin": "Raka Aditya"
+    };
+
+    const defaultEmails = {
+      User: "andi@email.com",
+      "Sub Admin": "admin@ecosort.id",
+      "Super Admin": "admin@ecosort.id"
+    };
+
+    const defaultProfile = {
+      name:
+        registeredMatches &&
+        typeof registeredProfile.name === "string" &&
+        registeredProfile.name.trim()
+          ? registeredProfile.name.trim()
+          : defaultNames[role] || "Pengguna EcoSort",
+
+      email: sessionEmail || defaultEmails[role] || "",
+      phone: "",
+      city: "",
+      photo: ""
+    };
+
+    let profile = {
+      ...defaultProfile,
+      ...(storedMatches ? storedProfile : {})
+    };
+
+    function navigate(page) {
+      if (!allowedPages.has(page)) {
+        showToast("Halaman tidak tersedia untuk akun ini.", "error");
+        return false;
+      }
+
+      const destination = PAGE_ROUTES[role]?.[page];
+      if (!destination) return false;
+
+      const target = new URL(destination, window.location.href);
+      target.hash = `app/${page}`;
+      window.location.assign(target.href);
+
+      return true;
+    }
+
+    function getInitials(name) {
+      return String(name || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(part => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase() || "U";
+    }
+
+    function getSafePhoto() {
+      return typeof profile.photo === "string" &&
+        profile.photo.startsWith("data:image/")
+          ? profile.photo
+          : "";
+    }
+
+    function persistProfile() {
+      try {
+        writeLocal("profile", profile);
+        writeLocal("profile-owner", normalizedEmail);
+
+        const currentRegistered = readLocal("prototype-profile", {});
+
+        if (
+          currentRegistered &&
+          typeof currentRegistered === "object" &&
+          !Array.isArray(currentRegistered) &&
+          String(currentRegistered.email || "").trim().toLowerCase() === normalizedEmail
+        ) {
+          writeLocal("prototype-profile", {
+            ...currentRegistered,
+            name: String(profile.name || "").trim(),
+            email: sessionEmail
+          });
+        }
+
+        return true;
+      } catch (error) {
+        console.error("ECOSORT: Gagal menyimpan profil.", error);
+        return false;
+      }
+    }
+
+    function updateProfileField(field, value) {
+      profile = {
+        ...profile,
+        [field]: value
+      };
+
+      if (!persistProfile()) {
+        showToast("Profil gagal disimpan ke penyimpanan lokal.", "error");
+      }
+
+      updateProfileBanner();
+    }
+
+    function renderAvatar() {
+      const photo = getSafePhoto();
+
+      if (photo) {
+        return `
+          <img
+            id="profile-avatar"
+            class="large-avatar profile-photo"
+            src="${escapeHTML(photo)}"
+            alt="Foto profil"
+          >
+        `;
+      }
+
+      return `
+        <span id="profile-avatar" class="large-avatar">
+          ${escapeHTML(getInitials(profile.name))}
+        </span>
+      `;
+    }
+
+    function updateProfileBanner() {
+      const heading = root.querySelector(".profile-banner h3");
+      const avatar = root.querySelector("#profile-avatar");
+
+      if (heading) heading.textContent = profile.name;
+      if (avatar) avatar.outerHTML = renderAvatar();
+    }
+
+    function showToast(message, tone = "success") {
+      showSharedToast(message, tone);
+    }
+
+    function renderProfileField({
+      field,
+      label,
+      placeholder,
+      type = "text",
+      value,
+      autoComplete = "off",
+      readOnly = false
+    }) {
+      return `
+        <label class="field">
+          <span>${escapeHTML(label)}</span>
+          <div class="input-wrap">
+            <input
+              type="${escapeHTML(type)}"
+              placeholder="${escapeHTML(placeholder)}"
+              value="${escapeHTML(value || "")}"
+              data-profile-field="${escapeHTML(field)}"
+              autocomplete="${escapeHTML(autoComplete)}"
+              ${readOnly ? "readonly" : ""}
+            >
+          </div>
+        </label>
+      `;
+    }
+
+    function renderPasswordField({
+      field,
+      label,
+      placeholder,
+      value = ""
+    }) {
+      return `
+        <label class="field">
+          <span>${escapeHTML(label)}</span>
+          <div class="input-wrap">
+            <input
+              type="password"
+              placeholder="${escapeHTML(placeholder)}"
+              value="${escapeHTML(value)}"
+              data-password-field="${escapeHTML(field)}"
+              autocomplete="off"
+            >
+          </div>
+        </label>
+      `;
+    }
+
+    function renderPersonalInformation() {
+      return `
+        <div class="profile-banner">
+          ${renderAvatar()}
+
+          <div>
+            <h3>${escapeHTML(profile.name)}</h3>
+            <p>${escapeHTML(role)} · Prototipe lokal</p>
+          </div>
+
+          <input
+            id="profile-photo-input"
+            class="sr-only"
+            type="file"
+            accept="image/png,image/jpeg"
+          >
+
+          <button
+            type="button"
+            class="btn btn-outline"
+            data-action="choose-photo"
+          >
+            Ganti foto
+          </button>
+        </div>
+
+        <div class="form-grid">
+          ${renderProfileField({
+            field: "name",
+            label: "Nama lengkap",
+            placeholder: "Nama lengkap",
+            value: profile.name,
+            autoComplete: "name"
+          })}
+
+          ${renderProfileField({
+            field: "email",
+            label: "Alamat email",
+            placeholder: "nama@email.com",
+            type: "email",
+            value: profile.email,
+            autoComplete: "email"
+          })}
+
+          ${renderProfileField({
+            field: "phone",
+            label: "Nomor telepon",
+            placeholder: "+62 812 3456 7890",
+            value: profile.phone,
+            autoComplete: "tel"
+          })}
+
+          ${renderProfileField({
+            field: "city",
+            label: "Kota",
+            placeholder: "Gorontalo",
+            value: profile.city,
+            autoComplete: "address-level2"
+          })}
+        </div>
+
+        <div class="settings-actions">
+          <button
+            type="button"
+            class="btn btn-primary"
+            data-action="save-profile"
+          >
+            ${icon("check", 17)}
+            Simpan perubahan
+          </button>
+        </div>
+      `;
+    }
+
+    function renderPasswordSettings() {
+      return `
+        <div class="panel-head">
+          <div>
+            <h3>Ubah kata sandi</h3>
+            <p>Backend autentikasi diperlukan untuk menerapkan perubahan.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          ${renderPasswordField({
+            field: "current",
+            label: "Kata sandi saat ini",
+            placeholder: "Minimal 8 karakter"
+          })}
+
+          <span></span>
+
+          ${renderPasswordField({
+            field: "next",
+            label: "Kata sandi baru",
+            placeholder: "Minimal 8 karakter"
+          })}
+
+          ${renderPasswordField({
+            field: "confirm",
+            label: "Konfirmasi kata sandi",
+            placeholder: "Ulangi kata sandi baru"
+          })}
+        </div>
+
+        <div class="settings-actions">
+          <button
+            type="button"
+            class="btn btn-primary"
+            data-action="validate-password"
+          >
+            ${icon("check", 17)}
+            Validasi perubahan
+          </button>
+        </div>
+      `;
+    }
+
+    function renderAccountActivity() {
+      return `
+        <div class="panel-head">
+          <div>
+            <h3>Aktivitas akun</h3>
+            <p>Aktivitas terbaru pada sesi prototipe ini.</p>
+          </div>
+        </div>
+
+        <div class="activity-account">
+          <div>
+            ${icon("classify", 21)}
+            <p>
+              <b>Klasifikasi sampah</b>
+              <span>Riwayat tersimpan di perangkat ini</span>
+            </p>
+          </div>
+
+          <div>
+            ${icon("profile", 21)}
+            <p>
+              <b>Profil dibuka</b>
+              <span>Sesi aktif sebagai ${escapeHTML(role)}</span>
+            </p>
+          </div>
+        </div>
+
+        <div class="settings-actions"></div>
+      `;
+    }
+
+    function renderProfileTab() {
+      root.querySelectorAll("[data-profile-tab]").forEach(button => {
+        const index = Number(button.dataset.profileTab);
+        button.classList.toggle("active", index === activeTab);
+        button.setAttribute("aria-selected", String(index === activeTab));
+      });
+
+      const panel = root.querySelector(".settings-card");
+      if (!panel) return;
+
+      if (activeTab === 0) {
+        panel.innerHTML = renderPersonalInformation();
+      } else if (activeTab === 1) {
+        panel.innerHTML = renderPasswordSettings();
+      } else {
+        panel.innerHTML = renderAccountActivity();
+      }
+    }
+
+    function saveProfile() {
+      root.querySelectorAll("[data-profile-field]").forEach(input => {
+        profile = {
+          ...profile,
+          [input.dataset.profileField]: input.value
+        };
+      });
+
+      if (
+        String(profile.name || "").trim().length < 3 ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+          String(profile.email || "").trim()
+        )
+      ) {
+        showToast("Periksa nama dan alamat email sebelum menyimpan.", "error");
+        return;
+      }
+
+      profile.name = String(profile.name).trim();
+      profile.email = String(profile.email).trim();
+
+      if (!persistProfile()) {
+        showToast("Profil gagal disimpan.", "error");
+        return;
+      }
+
+      updateProfileBanner();
+      showToast("Profil berhasil disimpan.");
+    }
+
+    function changePassword() {
+      const current =
+        root.querySelector('[data-password-field="current"]')?.value || "";
+
+      const next =
+        root.querySelector('[data-password-field="next"]')?.value || "";
+
+      const confirm =
+        root.querySelector('[data-password-field="confirm"]')?.value || "";
+
+      if (current.length < 8 || next.length < 8) {
+        showToast("Kata sandi harus minimal 8 karakter.", "error");
+        return;
+      }
+
+      if (next !== confirm) {
+        showToast("Konfirmasi kata sandi baru tidak cocok.", "error");
+        return;
+      }
+
+      root.querySelectorAll("[data-password-field]").forEach(input => {
+        input.value = "";
+      });
+
+      showToast(
+        "Validasi berhasil, tetapi perubahan kata sandi memerlukan backend autentikasi.",
+        "info"
+      );
+    }
+
+    function uploadPhoto(file) {
+      if (!file) return;
+
+      if (!file.type.startsWith("image/") || file.size > 1024 * 1024) {
+        showToast("Gunakan gambar JPG/PNG maksimal 1 MB.", "error");
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        profile = {
+          ...profile,
+          photo: String(reader.result)
+        };
+
+        if (!persistProfile()) {
+          showToast("Foto profil gagal disimpan.", "error");
+          return;
+        }
+
+        updateProfileBanner();
+        showToast("Foto profil berhasil diperbarui.");
+      };
+
+      reader.onerror = () => {
+        showToast("Foto profil gagal dibaca.", "error");
+      };
+
+      reader.readAsDataURL(file);
+    }
+
+    function setSidebarOpen(open) {
+      sidebarOpen = Boolean(open);
+
+      const sidebar = root.querySelector(".sidebar");
+      const overlay = root.querySelector(".side-overlay");
+
+      sidebar?.classList.toggle("sidebar-open", sidebarOpen);
+      if (overlay) overlay.hidden = !sidebarOpen;
+    }
+
+    function renderLogoutModal() {
+      const modalRoot = root.querySelector("#modal-root");
+      if (!modalRoot) return;
+
+      modalRoot.innerHTML = confirmLogout ? `
+        <div
+          class="modal-backdrop"
+          data-action="close-logout-backdrop"
+          role="presentation"
+        >
+          <form
+            class="modal"
+            data-form="logout"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-modal-title"
+            novalidate
+          >
+            <div class="modal-head">
+              <div class="delete-icon">
+                ${icon("waste")}
+                <h3 id="logout-modal-title">Keluar dari EcoSort?</h3>
+                <p>
+                  Tindakan ini tidak dapat dibatalkan.
+                  Data akan dihapus dari penyimpanan lokal.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                data-action="cancel-logout"
+                aria-label="Tutup modal"
+              >
+                ${icon("close")}
+              </button>
+            </div>
+
+            <div class="modal-actions">
+              <button
+                type="button"
+                class="btn btn-outline"
+                data-action="cancel-logout"
+              >
+                Batal
+              </button>
+
+              <button type="submit" class="btn btn-danger">
+                Ya, keluar
+              </button>
+            </div>
+          </form>
+        </div>
+      ` : "";
+
+      if (confirmLogout) {
+        modalRoot.querySelector('[data-action="cancel-logout"]')?.focus();
+      }
+    }
+
+    async function handleLogout() {
+      const confirmed = await confirmLogoutDialog();
+      if (!confirmed) return;
+
+      if (logout()) {
+        window.location.assign("../landing.html");
+      } else {
+        showToast("Gagal keluar dari akun.", "error");
+      }
+    }
+
+    function confirmLogoutAction() {
+      confirmLogout = false;
+
+      if (!logout()) {
+        renderLogoutModal();
+        showToast("Gagal mengakhiri sesi.", "error");
+        return;
+      }
+
+      window.location.assign("../landing.html");
+    }
+
+    function renderApplication() {
+      const tabs = [
+        "Informasi pribadi",
+        "Kata sandi",
+        "Aktivitas akun"
+      ];
+
+      root.innerHTML = `
+        <div class="app-shell">
+          ${renderSidebar({
+            role,
+            page: "profile",
+            open: sidebarOpen
+          })}
+
+          <div class="app-main">
+            ${renderHeader({ role })}
+
+            <main>
+              <div class="page-title">
+                <div>
+                  <h1>Profil Saya</h1>
+                  <p>Kelola informasi pribadi dan keamanan akun Anda.</p>
+                </div>
+              </div>
+
+              <div class="settings-layout">
+                <nav
+                  class="settings-nav"
+                  aria-label="Navigasi profil"
+                  role="tablist"
+                >
+                  ${tabs.map((label, index) => `
+                    <button
+                      type="button"
+                      class="${index === activeTab ? "active" : ""}"
+                      data-profile-tab="${index}"
+                      role="tab"
+                      aria-selected="${index === activeTab}"
+                    >
+                      ${escapeHTML(label)}
+                      ${icon("chevron", 15)}
+                    </button>
+                  `).join("")}
+                </nav>
+
+                <section
+                  class="panel settings-card"
+                  role="tabpanel"
+                ></section>
+              </div>
+            </main>
+          </div>
+
+          <div
+            class="side-overlay"
+            data-action="close-overlay"
+            hidden
+          ></div>
+        </div>
+
+        <div id="modal-root"></div>
+        <div id="toast-root"></div>
+      `;
+
+      bindSidebar(root.querySelector(".sidebar"), {
+        setPage: navigate,
+        setOpen: setSidebarOpen,
+        onLogout: handleLogout
+      });
+
+      root.querySelector(".side-overlay")?.addEventListener(
+        "click",
+        () => setSidebarOpen(false)
+      );
+
+      removeHeaderEvents = bindHeader(
+        root.querySelector(".app-header"),
+        {
+          role,
+          onMenu: () => setSidebarOpen(true),
+          onNavigate: navigate
+        }
+      );
+
+      renderProfileTab();
+    }
+
+    function handleProfileInput(event) {
+      const input = event.target.closest("[data-profile-field]");
+      if (!input) return;
+      updateProfileField(input.dataset.profileField, input.value);
+    }
+
+    function handleRootChange(event) {
+      const input = event.target;
+      if (input.id !== "profile-photo-input") return;
+      uploadPhoto(input.files?.[0]);
+      input.value = "";
+    }
+
+    function handleRootClick(event) {
+      const tabButton = event.target.closest("[data-profile-tab]");
+
+      if (tabButton) {
+        activeTab = Number(tabButton.dataset.profileTab);
+        renderProfileTab();
+        return;
+      }
+
+      const action = event.target.closest("[data-action]");
+      if (!action || !root.contains(action)) return;
+
+      switch (action.dataset.action) {
+        case "choose-photo":
+          root.querySelector("#profile-photo-input")?.click();
+          break;
+
+        case "save-profile":
+          saveProfile();
+          break;
+
+        case "validate-password":
+          changePassword();
+          break;
+
+        case "dismiss-toast": {
+          const container = root.querySelector("#toast-root");
+          if (container) container.innerHTML = "";
+
+          if (toastTimer) {
+            window.clearTimeout(toastTimer);
+            toastTimer = null;
+          }
+          break;
+        }
+
+        case "close-overlay":
+          setSidebarOpen(false);
+          break;
+
+        case "cancel-logout":
+          confirmLogout = false;
+          renderLogoutModal();
+          break;
+
+        case "close-logout-backdrop":
+          if (event.target === action) {
+            confirmLogout = false;
+            renderLogoutModal();
+          }
+          break;
+      }
+    }
+
+    function handleRootSubmit(event) {
+      const form = event.target.closest('[data-form="logout"]');
+      if (!form || !root.contains(form)) return;
+
+      event.preventDefault();
+      confirmLogoutAction();
+    }
+
+    function handleKeydown(event) {
+      if (event.key === "Escape" && confirmLogout) {
+        confirmLogout = false;
+        renderLogoutModal();
+      }
+    }
+
+    root.addEventListener("input", handleProfileInput);
+    root.addEventListener("change", handleRootChange);
+    root.addEventListener("click", handleRootClick);
+    root.addEventListener("submit", handleRootSubmit);
+
+    window.addEventListener("keydown", handleKeydown);
+
+    const requestedPage = pageFromHash();
+
+    if (requestedPage && requestedPage !== "profile") {
+      if (!navigate(requestedPage)) {
+        window.history.replaceState(null, "", "#app/profile");
+        renderApplication();
+      }
+    } else {
+      if (!requestedPage) {
+        window.history.replaceState(null, "", "#app/profile");
+      }
+      renderApplication();
+    }
+
+    window.addEventListener("pagehide", () => {
+      removeHeaderEvents();
+      window.removeEventListener("keydown", handleKeydown);
+      if (toastTimer) window.clearTimeout(toastTimer);
+    }, { once: true });
+  </script>
+</body>
+</html>

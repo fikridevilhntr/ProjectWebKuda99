@@ -1,0 +1,426 @@
+
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#166534">
+
+  <title>Beranda Pengguna | EcoSort</title>
+
+  <link rel="icon" href="../../assets/icon/favicon.svg">
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+
+<body>
+
+  <div id="app-root"></div>
+
+  <noscript>
+    <p>Aktifkan JavaScript untuk menggunakan EcoSort.</p>
+  </noscript>
+
+  <script type="module">
+
+    import {
+      getActiveSession,
+      logout
+    } from "../../js/core/auth.js";
+
+    import {
+      allowedPagesForRole,
+      pageFromHash
+    } from "../../js/core/router.js";
+
+    import {
+      renderSidebar,
+      bindSidebar,
+      renderHeader,
+      bindHeader,
+      showLogoutConfirm
+    } from "../../js/core/layout.js";
+
+    import {
+      renderUserDashboard
+    } from "../../js/core/dashboard.js";
+    import { icon } from "../../js/core/icons.js";
+
+
+    /* =====================================
+       SESSION VALIDATION
+    ===================================== */
+
+    const session = getActiveSession();
+
+    const roleHome = {
+      "User": "./user-dashboard.html",
+      "Sub Admin": "../subadmin/subadmin-dashboard.html",
+      "Super Admin": "../superadmin/superadmin-dashboard.html"
+    };
+
+    if (!session) {
+      window.location.replace("../login.html");
+      throw new Error("ECOSORT: Session tidak ditemukan.");
+    }
+
+    if (session.role !== "User") {
+      window.location.replace(
+        roleHome[session.role] || "../login.html"
+      );
+
+      throw new Error("ECOSORT: Role tidak sesuai.");
+    }
+
+
+    /* =====================================
+       ROOT ELEMENT
+    ===================================== */
+
+    const root = document.getElementById("app-root");
+
+    if (!root) {
+      throw new Error("ECOSORT: App root tidak ditemukan.");
+    }
+
+
+    /* =====================================
+       USER PAGE ROUTES
+    ===================================== */
+
+    const PAGE_ROUTES = {
+      dashboard: "./user-dashboard.html",
+      classify: "./user-classification.html",
+      history: "./user-history.html",
+      profile: "./user-profile.html",
+      settings: "../settings.html"
+    };
+
+    const allowedPages = allowedPagesForRole("User");
+
+    let sidebarOpen = false;
+    let removeHeaderEvents = () => {};
+
+
+    /* =====================================
+       NAVIGATION
+    ===================================== */
+
+    function navigate(page) {
+
+      if (!allowedPages.has(page)) {
+        return false;
+      }
+
+      const destination = PAGE_ROUTES[page];
+
+      if (!destination) {
+        return false;
+      }
+
+      const target = new URL(
+        destination,
+        window.location.href
+      );
+
+      target.hash = `app/${page}`;
+
+      window.location.assign(target.href);
+
+      return true;
+    }
+
+
+    /* =====================================
+       LOGOUT
+    ===================================== */
+
+    function handleLogout() {
+
+      showLogoutConfirm({
+
+        onConfirm: () => {
+
+          if (!logout()) {
+
+            console.error(
+              "ECOSORT: Gagal mengakhiri sesi."
+            );
+
+            return;
+
+          }
+
+          window.location.assign("../landing.html");
+
+        }
+
+      });
+
+    }
+        
+    function renderLogoutModal() {
+    const modalRoot = root.querySelector("#modal-root");
+
+    if (!modalRoot) return;
+
+    modalRoot.innerHTML = `
+        <div class="modal-backdrop" data-modal-backdrop>
+        <form class="modal"
+            data-form="logout"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-title"
+            novalidate>
+
+            <div class="modal-head">
+            <div class="delete-icon">
+                ${icon("waste")}
+
+                <h3 id="logout-title">
+                Keluar dari EcoSort?
+                </h3>
+
+                <p>
+                Tindakan ini tidak dapat dibatalkan.
+                Data akan dihapus dari penyimpanan lokal.
+                </p>
+            </div>
+
+            <button type="button"
+                data-action="close-logout"
+                aria-label="Tutup modal">
+                ${icon("close")}
+            </button>
+            </div>
+
+            <p data-logout-error hidden
+            style="color:#dc2626;font-size:10px;padding:0 23px">
+            </p>
+
+            <div class="modal-actions">
+            <button type="button"
+                class="btn btn-outline"
+                data-action="close-logout">
+                Batal
+            </button>
+
+            <button type="submit" class="btn btn-danger">
+                Ya, keluar
+            </button>
+            </div>
+
+        </form>
+        </div>
+    `;
+
+    const backdrop = modalRoot.querySelector(
+        "[data-modal-backdrop]"
+    );
+
+    const form = modalRoot.querySelector(
+        '[data-form="logout"]'
+    );
+
+    form.querySelectorAll(
+        '[data-action="close-logout"]'
+    ).forEach(button => {
+        button.addEventListener("click", closeLogoutModal);
+    });
+
+    backdrop.addEventListener("mousedown", event => {
+        if (event.target === backdrop) {
+        closeLogoutModal();
+        }
+    });
+
+    form.addEventListener("submit", event => {
+        event.preventDefault();
+
+        if (!logout()) {
+        const error = form.querySelector("[data-logout-error]");
+        error.hidden = false;
+        error.textContent = "Gagal mengakhiri sesi. Silakan coba kembali.";
+        return;
+        }
+
+        window.location.assign("../landing.html");
+    });
+
+    window.addEventListener("keydown", handleLogoutEscape);
+
+    form.querySelector('[data-action="close-logout"]')?.focus();
+    }
+
+    function closeLogoutModal() {
+    window.removeEventListener("keydown", handleLogoutEscape);
+
+    const modalRoot = root.querySelector("#modal-root");
+
+    if (modalRoot) {
+        modalRoot.innerHTML = "";
+    }
+    }
+
+    function handleLogoutEscape(event) {
+    if (event.key === "Escape") {
+        closeLogoutModal();
+    }
+    }
+
+
+    /* =====================================
+       RENDER USER DASHBOARD
+    ===================================== */
+
+    function renderDashboard() {
+
+      removeHeaderEvents();
+
+      root.innerHTML = `
+
+        <div class="app-shell">
+
+          ${renderSidebar({
+            role: "User",
+            page: "dashboard",
+            open: sidebarOpen
+          })}
+
+          <div class="app-main">
+
+            ${renderHeader({
+              role: "User"
+            })}
+
+            <main>
+
+              ${renderUserDashboard()}
+
+            </main>
+
+          </div>
+
+          ${
+            sidebarOpen
+              ? '<div class="side-overlay" data-action="close-overlay"></div>'
+              : ""
+          }
+
+        </div>
+
+         <div id="modal-root"></div>
+
+      `;
+
+
+      /* SIDEBAR EVENTS */
+
+      const sidebar = root.querySelector(".sidebar");
+
+      bindSidebar(sidebar, {
+
+        setPage: navigate,
+
+        setOpen: open => {
+          sidebarOpen = open;
+          renderDashboard();
+        },
+
+        onLogout: handleLogout
+
+      });
+
+
+      /* HEADER EVENTS */
+
+      const header = root.querySelector(".app-header");
+
+      removeHeaderEvents = bindHeader(header, {
+
+        role: "User",
+
+        onMenu: () => {
+          sidebarOpen = true;
+          renderDashboard();
+        },
+
+        onNavigate: navigate
+
+      });
+
+
+      /* MOBILE SIDEBAR OVERLAY */
+
+      root
+        .querySelector('[data-action="close-overlay"]')
+        ?.addEventListener("click", () => {
+
+          sidebarOpen = false;
+
+          renderDashboard();
+
+        });
+
+    }
+
+
+    /* =====================================
+       DASHBOARD CONTENT EVENTS
+    ===================================== */
+
+    root.addEventListener("click", event => {
+
+      const pageButton = event.target.closest(
+        ".app-main [data-page]"
+      );
+
+      if (!pageButton) return;
+
+      navigate(pageButton.dataset.page);
+
+    });
+
+
+    /* =====================================
+       RESTORE HASH NAVIGATION
+    ===================================== */
+
+    const requestedPage = pageFromHash();
+
+    if (
+      requestedPage &&
+      requestedPage !== "dashboard"
+    ) {
+
+      navigate(requestedPage);
+
+    } else {
+
+      if (!requestedPage) {
+        window.history.replaceState(
+          null,
+          "",
+          "#app/dashboard"
+        );
+      }
+
+      renderDashboard();
+
+    }
+
+
+    /* =====================================
+       CLEANUP
+    ===================================== */
+
+    window.addEventListener(
+      "pagehide",
+      removeHeaderEvents,
+      { once: true }
+    );
+
+  </script>
+
+</body>
+</html>

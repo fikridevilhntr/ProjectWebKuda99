@@ -1,0 +1,1710 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#166534">
+
+  <title>Evaluasi Model | EcoSort Super Admin</title>
+
+  <link
+    rel="icon"
+    type="image/svg+xml"
+    href="../../assets/icon/favicon.svg"
+  >
+
+  <link rel="stylesheet" href="../../css/style.css">
+
+  <style>
+    /* CSS KHUSUS HALAMAN EVALUASI MODEL */
+
+    .model-status-note {
+      padding: 14px 17px;
+      border: 1px solid #bbf7d0;
+      background: #f0fdf4;
+      border-radius: 10px;
+      display: flex;
+      gap: 11px;
+      margin-bottom: 18px;
+      color: var(--primary);
+    }
+
+    .model-status-note > svg { flex: none; }
+    .model-status-note > div { flex: 1; min-width: 0; }
+    .model-status-note b,
+    .model-status-note span { display: block; }
+    .model-status-note b { font-size: 11px; }
+
+    .model-status-note span {
+      font-size: 10px;
+      line-height: 1.55;
+      margin-top: 4px;
+      color: #50715c;
+    }
+
+    .model-status-note.is-warn {
+      border-color: #fde68a;
+      background: #fffbeb;
+      color: #b45309;
+    }
+
+    .model-status-note.is-warn span { color: #92400e; }
+
+    .model-status-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 11px;
+    }
+
+    .model-status-actions .btn {
+      min-height: 34px;
+      padding: 0 12px;
+      font-size: 10px;
+    }
+
+    .btn:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    .metric-card-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .metric-card-head > span:last-child {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .metric-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      background: #dcfce7;
+      color: var(--primary);
+      display: grid !important;
+      place-items: center;
+    }
+
+    .metric-icon.blue { background: #dbeafe; color: #2563eb; }
+    .metric-icon.yellow { background: #fef3c7; color: #d97706; }
+    .metric-icon.purple { background: #ede9fe; color: #7c3aed; }
+
+    .metric-card b { margin: 13px 0 7px; }
+    .metric-card small { line-height: 1.45; }
+    .performance-panel { margin-bottom: 18px; }
+
+    .model-empty {
+      padding: 34px 20px 38px;
+      text-align: center;
+      font-size: 11px;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    /* Grafik batang per kategori */
+
+    .chart-legend {
+      display: flex;
+      justify-content: flex-end;
+      gap: 18px;
+      margin-top: 10px;
+    }
+
+    .chart-legend span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 9px;
+      color: var(--muted);
+    }
+
+    .chart-legend i {
+      width: 18px;
+      height: 8px;
+      border-radius: 3px;
+    }
+
+    .chart-legend .precision { background: var(--primary); }
+    .chart-legend .recall { background: #3b82f6; }
+    .chart-legend .f1 { background: #8b5cf6; }
+
+    .perf-chart {
+      width: 100%;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+
+    .perf-chart svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      min-height: 245px;
+    }
+
+    .chart-grid-line {
+      stroke: #e2e8f0;
+      stroke-width: 1;
+    }
+
+    .perf-chart text {
+      fill: #94a3b8;
+      font-size: 9px;
+    }
+
+    .perf-chart .bar-value { fill: #64748b; font-weight: 700; }
+    .perf-chart .bar-label { fill: #475569; font-size: 10px; font-weight: 700; }
+    .perf-chart .bar-sub { font-size: 8px; }
+
+    .bar-precision { fill: var(--primary); }
+    .bar-recall { fill: #3b82f6; }
+    .bar-f1 { fill: #8b5cf6; }
+
+    /* Confusion matrix 4 kelas + tidak terklasifikasi */
+
+    .confusion-axis {
+      text-align: center;
+      font-size: 9px;
+      font-weight: 700;
+      color: #64748b;
+      margin: 17px 0 8px;
+    }
+
+    .matrix.matrix-five {
+      grid-template-columns: 76px repeat(5, minmax(54px, 1fr));
+      gap: 5px;
+      margin-top: 0;
+    }
+
+    .matrix-five .matrix-corner {
+      font-size: 8px;
+      color: #94a3b8;
+      display: grid;
+      place-items: center;
+    }
+
+    .matrix-five i {
+      font-size: 8px;
+      font-weight: 650;
+      line-height: 1.25;
+    }
+
+    .matrix-five em { height: 48px; }
+
+    .matrix-five .matrix-value {
+      background: #f1f5f9;
+      color: #475569;
+      font-weight: 650;
+    }
+
+    .matrix-five .matrix-value.diagonal { background: #dcfce7; color: var(--primary); font-weight: 800; }
+    .matrix-five .matrix-value.error { background: #fee2e2; color: #b91c1c; font-weight: 800; }
+    .matrix-five .matrix-value.abstain { background: #fef3c7; color: #b45309; font-weight: 800; }
+    .matrix-five .matrix-value.zero { background: #f8fafc; color: #cbd5e1; font-weight: 500; }
+
+    .matrix-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 14px;
+      font-size: 9px;
+      color: var(--muted);
+    }
+
+    .matrix-legend span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .matrix-legend i {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+
+    /* Item grid boleh menyusut; matriks yang scroll di dalam panel. */
+    .model-grid > .panel { min-width: 0; }
+
+    .model-info dd {
+      max-width: 58%;
+      text-align: right;
+    }
+
+    .model-info .badge { margin-left: auto; }
+
+    /* Tabel */
+
+    .evaluation-panel {
+      margin-top: 18px;
+      padding: 20px 0 0;
+    }
+
+    .evaluation-panel > .panel-head {
+      padding: 0 20px 17px;
+    }
+
+    .panel-head.has-action {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-head.has-action .btn {
+      min-height: 34px;
+      padding: 0 12px;
+      font-size: 10px;
+      flex: none;
+    }
+
+    .evaluation-table { min-width: 620px; }
+    .evaluation-table.wide { min-width: 760px; }
+    .evaluation-table td b { color: var(--text); }
+    .evaluation-table .badge { white-space: nowrap; }
+
+    .evaluation-table tfoot td {
+      border-top: 2px solid var(--line);
+      font-weight: 700;
+    }
+
+    .reason-cell {
+      max-width: 320px;
+      white-space: normal;
+      line-height: 1.5;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .table-note {
+      padding: 12px 20px 16px;
+      font-size: 9px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* Modal aturan */
+
+    .modal.modal-wide { width: min(660px, 100%); }
+
+    .modal-wide .modal-body {
+      max-height: 62vh;
+      overflow: auto;
+    }
+
+    .modal-wide .modal-head p { max-width: 480px; }
+
+    .rule-step {
+      padding: 11px;
+      background: #f8fafc;
+      border-radius: 8px;
+      font-size: 10px;
+      line-height: 1.6;
+      margin: 0 0 8px;
+    }
+
+    .rule-step b {
+      display: block;
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+
+    .term-group { margin-top: 15px; }
+
+    .term-group h4 {
+      font-size: 10px;
+      margin: 0 0 7px;
+      color: #475569;
+    }
+
+    .term-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .term-chips span {
+      font-size: 9px;
+      background: #f1f5f9;
+      border-radius: 99px;
+      padding: 3px 9px;
+      color: #475569;
+    }
+
+    .rules-heading {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #64748b;
+      margin: 20px 0 9px;
+    }
+
+    @media (max-width: 720px) {
+      .chart-legend {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .perf-chart svg { min-width: 640px; }
+      .perf-chart { overflow-x: auto; }
+
+      .matrix.matrix-five {
+        grid-template-columns: 66px repeat(5, minmax(50px, 1fr));
+        overflow-x: auto;
+      }
+
+      .model-info dd { max-width: 52%; }
+
+      .evaluation-panel > .panel-head {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+
+      .table-note { padding-left: 16px; padding-right: 16px; }
+    }
+
+    @media (max-width: 430px) {
+      .matrix.matrix-five { font-size: 8px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app-root"></div>
+
+  <noscript>
+    Aktifkan JavaScript untuk menggunakan EcoSort.
+  </noscript>
+
+  <script type="module">
+    import { showToast as showSharedToast, confirmLogout } from "../../js/components/feedback.js";
+    import {
+      getActiveSession,
+      logout
+    } from "../../js/core/auth.js";
+
+    import {
+      allowedPagesForRole,
+      pageFromHash
+    } from "../../js/core/router.js";
+
+    import {
+      renderSidebar,
+      bindSidebar,
+      renderHeader,
+      bindHeader
+    } from "../../js/core/layout.js";
+
+    import { icon } from "../../js/core/icons.js";
+
+    import {
+      CLASSES,
+      UNCLASSIFIED,
+      MODEL_INFO,
+      MAX_HISTORY,
+      SMALL_SAMPLE_THRESHOLD,
+      formatPercent,
+      formatDate,
+      modelVersionLabel,
+      loadEvaluations,
+      clearEvaluations,
+      runEvaluation,
+      getReadiness,
+      appendSampleDataset,
+      getRuleSummary,
+      downloadReport
+    } from "../../js/modules/model.js";
+
+    const ROLE = "Super Admin";
+    const session = getActiveSession();
+    const root = document.getElementById("app-root");
+
+    const roleHome = {
+      User: "../user/user-dashboard.html",
+      "Sub Admin": "../subadmin/subadmin-dashboard.html",
+      "Super Admin": "./superadmin-dashboard.html"
+    };
+
+    if (!session) {
+      window.location.replace("../login.html");
+      throw new Error("ECOSORT: Sesi tidak ditemukan.");
+    }
+
+    if (session.role !== ROLE) {
+      window.location.replace(
+        roleHome[session.role] || "../login.html"
+      );
+      throw new Error("ECOSORT: Akses tidak diizinkan.");
+    }
+
+    if (!root) {
+      throw new Error("ECOSORT: App root tidak ditemukan.");
+    }
+
+    const ROUTES = {
+      dashboard: "./superadmin-dashboard.html",
+      users: "./superadmin-users.html",
+      waste: "./superadmin-waste-page.html",
+      guides: "./superadmin-guides-page.html",
+      dataset: "./superadmin-dataset-page.html",
+      model: "./superadmin-model-page.html",
+      reports: "../reports.html",
+      profile: "../user/user-profile.html",
+      settings: "../settings.html"
+    };
+
+    const allowedPages = allowedPagesForRole(ROLE);
+
+    const HISTORY_ROWS = 10;
+    const ERROR_ROWS = 10;
+
+    const CATEGORY_TONE = {
+      Organik: "green",
+      Anorganik: "blue",
+      B3: "red",
+      Residu: "gray",
+      [UNCLASSIFIED]: "yellow"
+    };
+
+    const CONFIRMS = {
+      "clear-history": {
+        title: "Hapus riwayat evaluasi?",
+        text: "Seluruh riwayat evaluasi yang tersimpan di browser ini akan dihapus. Dataset dan aturan klasifikasi tidak terpengaruh.",
+        label: "Ya, hapus riwayat",
+        danger: true
+      },
+      "load-sample": {
+        title: "Tambahkan contoh data uji?",
+        text: "Contoh data berlabel untuk kategori Organik, Anorganik, B3, dan Residu akan ditambahkan ke dataset. Data yang sudah ada tidak diubah.",
+        label: "Ya, tambahkan",
+        danger: false
+      }
+    };
+
+    const state = {
+      records: loadEvaluations(),
+      busy: false
+    };
+
+    let sidebarOpen = false;
+    let toastTimer = null;
+
+    /* HELPERS */
+
+    function esc(value = "") {
+      return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      })[char]);
+    }
+
+    function badge(text, tone = "green") {
+      return `
+        <span class="badge badge-${esc(tone)}">
+          <span class="badge-dot"></span>
+          ${esc(text)}
+        </span>
+      `;
+    }
+
+    function panelHead(title, subtitle = "", action = "") {
+      return `
+        <div class="panel-head ${action ? "has-action" : ""}">
+          <div>
+            <h3>${esc(title)}</h3>
+            ${subtitle ? `<p>${esc(subtitle)}</p>` : ""}
+          </div>
+          ${action}
+        </div>
+      `;
+    }
+
+    function latestRecord() {
+      return state.records[0] || null;
+    }
+
+    /* STATUS DATA UJI */
+
+    function renderStatusNote(readiness, record) {
+      const distribution = readiness.perClass
+        .map(item => `${item.name} ${item.count}`)
+        .join(" · ");
+
+      const skipped = readiness.skipped.notActive
+        ? ` ${readiness.skipped.notActive} data non-aktif dilewati.`
+        : "";
+
+      const actions = [];
+
+      const sampleButton = readiness.sampleAvailable
+        ? `
+          <button
+            type="button"
+            class="btn btn-primary"
+            data-model-action="load-sample"
+          >
+            <span>Muat contoh data uji</span>
+          </button>
+        `
+        : "";
+
+      const datasetButton = `
+        <button
+          type="button"
+          class="btn btn-outline"
+          data-model-action="go-dataset"
+        >
+          <span>Buka halaman Dataset</span>
+        </button>
+      `;
+
+      let tone = "info";
+      let title = "";
+      const lines = [];
+
+      if (readiness.eligible === 0) {
+        tone = "warn";
+        title = "Belum ada data uji";
+        lines.push(
+          "Evaluasi membutuhkan data berstatus Aktif dengan label Organik, Anorganik, B3, atau Residu di halaman Dataset."
+        );
+        actions.push(datasetButton, sampleButton);
+      } else {
+        if (record && readiness.stale) {
+          tone = "warn";
+          title = "Hasil evaluasi sudah tidak sesuai";
+          lines.push(
+            readiness.modelChanged
+              ? "Aturan klasifikasi berubah sejak evaluasi terakhir. Jalankan evaluasi ulang untuk memperbarui angka di bawah."
+              : "Dataset berubah sejak evaluasi terakhir. Jalankan evaluasi ulang untuk memperbarui angka di bawah."
+          );
+        }
+
+        if (readiness.small || readiness.missingClasses.length) {
+          tone = "warn";
+
+          if (!title) {
+            title = "Jumlah data uji masih kecil";
+          }
+
+          lines.push(
+            `${readiness.eligible} sampel aktif (${distribution}).` +
+            (readiness.small
+              ? ` Metrik kurang stabil di bawah ${SMALL_SAMPLE_THRESHOLD} sampel.`
+              : "") +
+            (readiness.missingClasses.length
+              ? ` Kategori ${readiness.missingClasses.join(", ")} belum punya data uji.`
+              : "")
+          );
+
+          actions.push(datasetButton, sampleButton);
+        }
+
+        if (tone === "info") {
+          title = "Data uji siap";
+          lines.push(
+            `${readiness.eligible} sampel aktif (${distribution}).${skipped} ` +
+            (record
+              ? "Hasil di bawah sesuai dengan dataset dan aturan saat ini."
+              : "Klik Jalankan Evaluasi untuk menguji model.")
+          );
+        } else if (skipped) {
+          lines.push(skipped.trim());
+        }
+      }
+
+      return `
+        <div class="model-status-note ${tone === "warn" ? "is-warn" : ""}">
+          ${icon(tone === "warn" ? "bell" : "model")}
+          <div>
+            <b>${esc(title)}</b>
+            ${lines.map(line => `<span>${esc(line)}</span>`).join("")}
+            ${actions.filter(Boolean).length
+              ? `<div class="model-status-actions">${actions.join("")}</div>`
+              : ""}
+          </div>
+        </div>
+      `;
+    }
+
+    /* KARTU METRIK */
+
+    function renderMetricCards(record) {
+      const m = record?.metrics;
+
+      const cards = [
+        {
+          name: "Accuracy",
+          value: m?.accuracy,
+          note: m
+            ? `${m.correct} dari ${m.total} sampel diprediksi benar`
+            : "Belum dievaluasi",
+          iconName: "check",
+          tone: "green"
+        },
+        {
+          name: "Precision",
+          value: m?.precision,
+          note: m
+            ? "Rata-rata ketepatan prediksi tiap kategori (macro)"
+            : "Belum dievaluasi",
+          iconName: "classify",
+          tone: "blue"
+        },
+        {
+          name: "Recall",
+          value: m?.recall,
+          note: m
+            ? "Rata-rata kemampuan menemukan sampel tiap kategori (macro)"
+            : "Belum dievaluasi",
+          iconName: "search",
+          tone: "yellow"
+        },
+        {
+          name: "F1-Score",
+          value: m?.f1,
+          note: m
+            ? "Keseimbangan precision dan recall (macro)"
+            : "Belum dievaluasi",
+          iconName: "model",
+          tone: "purple"
+        }
+      ];
+
+      return `
+        <div class="metric-grid">
+          ${cards.map(card => `
+            <div class="metric-card">
+              <div class="metric-card-head">
+                <span class="metric-icon ${card.tone}">
+                  ${icon(card.iconName, 19)}
+                </span>
+                <span>${esc(card.name)}</span>
+              </div>
+              <b>${formatPercent(card.value)}</b>
+              <small>${esc(card.note)}</small>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    /* GRAFIK BATANG PER KATEGORI */
+
+    function renderBarChart(metrics) {
+      const left = 55;
+      const right = 735;
+      const top = 24;
+      const bottom = 206;
+      const plotHeight = bottom - top;
+
+      const yOf = value => bottom - value * plotHeight;
+
+      const series = [
+        ["precision", "bar-precision"],
+        ["recall", "bar-recall"],
+        ["f1", "bar-f1"]
+      ];
+
+      const barWidth = 34;
+      const gap = 8;
+      const groupInner = series.length * barWidth + (series.length - 1) * gap;
+      const groupWidth = (right - left) / metrics.perClass.length;
+
+      const grid = [0, 0.25, 0.5, 0.75, 1].map(value => `
+        <line
+          x1="${left}" y1="${yOf(value)}"
+          x2="${right}" y2="${yOf(value)}"
+          class="chart-grid-line"
+        />
+        <text
+          x="${left - 8}" y="${yOf(value) + 3}"
+          text-anchor="end"
+        >${Math.round(value * 100)}%</text>
+      `).join("");
+
+      const groups = metrics.perClass.map((item, index) => {
+        const groupX = left + index * groupWidth;
+        const startX = groupX + (groupWidth - groupInner) / 2;
+        const centerX = groupX + groupWidth / 2;
+
+        const bars = item.evaluable
+          ? series.map(([key, className], barIndex) => {
+              const value = item[key];
+              const x = startX + barIndex * (barWidth + gap);
+              const height = Math.max(value * plotHeight, 0);
+
+              return `
+                <rect
+                  x="${x}" y="${bottom - height}"
+                  width="${barWidth}" height="${height}"
+                  rx="3" class="${className}"
+                />
+                <text
+                  x="${x + barWidth / 2}" y="${bottom - height - 5}"
+                  text-anchor="middle" class="bar-value"
+                >${Math.round(value * 100)}%</text>
+              `;
+            }).join("")
+          : `
+              <text
+                x="${centerX}" y="${bottom - 12}"
+                text-anchor="middle"
+              >Tidak ada data uji</text>
+            `;
+
+        return `
+          ${bars}
+          <text
+            x="${centerX}" y="${bottom + 18}"
+            text-anchor="middle" class="bar-label"
+          >${esc(item.name)}</text>
+          <text
+            x="${centerX}" y="${bottom + 31}"
+            text-anchor="middle" class="bar-sub"
+          >n = ${item.support}</text>
+        `;
+      }).join("");
+
+      return `
+        <svg
+          viewBox="0 0 760 250"
+          role="img"
+          aria-label="Grafik batang precision, recall, dan F1-score untuk setiap kategori sampah"
+        >
+          ${grid}
+          ${groups}
+        </svg>
+      `;
+    }
+
+    function renderPerformancePanel(record) {
+      return `
+        <div class="panel performance-panel">
+          ${panelHead(
+            "Grafik performa per kategori",
+            record
+              ? "Precision, recall, dan F1-score pada evaluasi terbaru"
+              : "Tersedia setelah evaluasi dijalankan"
+          )}
+
+          ${record
+            ? `
+              <div class="chart-legend">
+                <span><i class="precision"></i>Precision</span>
+                <span><i class="recall"></i>Recall</span>
+                <span><i class="f1"></i>F1-Score</span>
+              </div>
+
+              <div class="perf-chart">
+                ${renderBarChart(record.metrics)}
+              </div>
+            `
+            : `
+              <div class="model-empty">
+                Belum ada hasil evaluasi. Jalankan evaluasi untuk melihat performa model pada tiap kategori.
+              </div>
+            `}
+        </div>
+      `;
+    }
+
+    /* CONFUSION MATRIX */
+
+    function renderMatrixPanel(record) {
+      if (!record) {
+        return `
+          <div class="panel">
+            ${panelHead(
+              "Confusion Matrix",
+              "Tersedia setelah evaluasi dijalankan"
+            )}
+            <div class="model-empty">
+              Matriks dihitung dari prediksi model pada data uji.
+            </div>
+          </div>
+        `;
+      }
+
+      const columns = [...CLASSES, UNCLASSIFIED];
+      const unclassifiedIndex = CLASSES.length;
+
+      return `
+        <div class="panel">
+          ${panelHead(
+            "Confusion Matrix",
+            `Distribusi prediksi pada ${record.metrics.total} data uji`
+          )}
+
+          <div class="confusion-axis">Prediksi</div>
+
+          <div class="matrix matrix-five">
+            <span class="matrix-corner">Aktual</span>
+
+            ${columns.map(name => `<i>${esc(name)}</i>`).join("")}
+
+            ${record.matrix.map((row, i) => `
+              <em class="label">${esc(CLASSES[i])}</em>
+
+              ${row.map((value, j) => {
+                let kind = "";
+
+                if (value === 0) kind = "zero";
+                else if (i === j) kind = "diagonal";
+                else if (j === unclassifiedIndex) kind = "abstain";
+                else kind = "error";
+
+                return `<em class="matrix-value ${kind}">${value}</em>`;
+              }).join("")}
+            `).join("")}
+          </div>
+
+          <div class="matrix-legend">
+            <span><i style="background:#dcfce7"></i>Prediksi benar</span>
+            <span><i style="background:#fee2e2"></i>Salah kategori</span>
+            <span><i style="background:#fef3c7"></i>Tidak terklasifikasi</span>
+          </div>
+        </div>
+      `;
+    }
+
+    /* INFORMASI MODEL */
+
+    function renderModelInfo(readiness, record) {
+      const m = record?.metrics;
+
+      const rows = [
+        ["Nama Model", esc(MODEL_INFO.name)],
+        ["Jenis Model", esc(MODEL_INFO.kind)],
+        ["Versi Aturan", esc(modelVersionLabel())],
+        ["Jumlah Kelas", `${CLASSES.length} + tidak terklasifikasi`],
+        ["Status Model", badge("Aktif")],
+        ["Dataset", `${readiness.eligible} sampel aktif`],
+        [
+          "Terakhir Dievaluasi",
+          record ? esc(formatDate(record.createdAt)) : "Belum pernah"
+        ]
+      ];
+
+      if (m) {
+        rows.push([
+          "Tidak Terklasifikasi",
+          `${m.unclassified} sampel (${formatPercent(
+            m.total ? m.unclassified / m.total : 0
+          )})`
+        ]);
+      }
+
+      return `
+        <div class="panel model-info">
+          ${panelHead("Informasi model")}
+
+          <dl>
+            ${rows.map(([label, value]) => `
+              <div>
+                <dt>${esc(label)}</dt>
+                <dd>${value}</dd>
+              </div>
+            `).join("")}
+          </dl>
+
+          <div class="model-note">
+            ${icon("check")}
+            <p>
+              Model ini berupa aturan keputusan yang ditulis manual, bukan hasil pelatihan.
+              Evaluasi mengukur kesesuaian keputusannya dengan label pada dataset,
+              sehingga tidak ada kurva training atau validation.
+            </p>
+          </div>
+        </div>
+      `;
+    }
+
+    /* HASIL PER KATEGORI */
+
+    function renderClassTable(record) {
+      if (!record) {
+        return `
+          <div class="panel evaluation-panel">
+            ${panelHead(
+              "Hasil evaluasi klasifikasi",
+              "Performa model untuk setiap kategori sampah"
+            )}
+            <div class="model-empty">
+              Belum ada hasil evaluasi.
+            </div>
+          </div>
+        `;
+      }
+
+      const m = record.metrics;
+
+      return `
+        <div class="panel evaluation-panel">
+          ${panelHead(
+            "Hasil evaluasi klasifikasi",
+            "Performa model untuk setiap kategori sampah"
+          )}
+
+          <div class="table-scroll">
+            <table class="evaluation-table">
+              <thead>
+                <tr>
+                  <th>Kategori Sampah</th>
+                  <th>Precision</th>
+                  <th>Recall</th>
+                  <th>F1-Score</th>
+                  <th>Jumlah Data</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                ${m.perClass.map(item => `
+                  <tr>
+                    <td><b>${esc(item.name)}</b></td>
+                    <td>${item.evaluable ? formatPercent(item.precision) : "—"}</td>
+                    <td>${item.evaluable ? formatPercent(item.recall) : "—"}</td>
+                    <td>${item.evaluable ? formatPercent(item.f1) : "—"}</td>
+                    <td>${item.support}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+
+              <tfoot>
+                <tr>
+                  <td>Rata-rata (macro)</td>
+                  <td>${formatPercent(m.precision)}</td>
+                  <td>${formatPercent(m.recall)}</td>
+                  <td>${formatPercent(m.f1)}</td>
+                  <td>${m.total}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <p class="table-note">
+            Sampel yang ditolak classifier (tidak terklasifikasi) dihitung salah pada accuracy dan recall.
+            Kategori tanpa data uji ditandai “—” dan tidak ikut rata-rata.
+          </p>
+        </div>
+      `;
+    }
+
+    /* SAMPEL SALAH KLASIFIKASI */
+
+    function renderErrorsPanel(record) {
+      if (!record) return "";
+
+      const shown = record.errors.slice(0, ERROR_ROWS);
+
+      return `
+        <div class="panel evaluation-panel">
+          ${panelHead(
+            "Sampel salah klasifikasi",
+            record.errorCount
+              ? `${record.errorCount} dari ${record.metrics.total} sampel tidak sesuai label`
+              : "Seluruh sampel sesuai label"
+          )}
+
+          ${shown.length
+            ? `
+              <div class="table-scroll">
+                <table class="evaluation-table wide">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Nama</th>
+                      <th>Label Aktual</th>
+                      <th>Prediksi</th>
+                      <th>Alasan Classifier</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    ${shown.map(item => `
+                      <tr>
+                        <td>${esc(item.id)}</td>
+                        <td><b>${esc(item.name)}</b></td>
+                        <td>${badge(item.actual, CATEGORY_TONE[item.actual] || "gray")}</td>
+                        <td>${badge(item.predicted, CATEGORY_TONE[item.predicted] || "gray")}</td>
+                        <td class="reason-cell">${esc(item.reason)}</td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+
+              ${record.errorCount > shown.length
+                ? `
+                  <p class="table-note">
+                    Menampilkan ${shown.length} dari ${record.errorCount} sampel.
+                    Daftar lengkap tersedia di laporan CSV.
+                  </p>
+                `
+                : ""}
+            `
+            : `
+              <div class="model-empty">
+                Tidak ada sampel yang salah diklasifikasi pada evaluasi ini.
+              </div>
+            `}
+        </div>
+      `;
+    }
+
+    /* RIWAYAT EVALUASI */
+
+    function renderHistoryPanel(readiness) {
+      const records = state.records;
+      const visible = records.slice(0, HISTORY_ROWS);
+
+      const clearButton = records.length
+        ? `
+          <button
+            type="button"
+            class="btn btn-outline"
+            data-model-action="clear-history"
+          >
+            <span>Hapus riwayat</span>
+          </button>
+        `
+        : "";
+
+      return `
+        <div class="panel evaluation-panel">
+          ${panelHead(
+            "Riwayat evaluasi",
+            records.length
+              ? `${records.length} evaluasi tersimpan (maksimal ${MAX_HISTORY})`
+              : "Belum ada evaluasi yang dijalankan",
+            clearButton
+          )}
+
+          ${visible.length
+            ? `
+              <div class="table-scroll">
+                <table class="evaluation-table">
+                  <thead>
+                    <tr>
+                      <th>Tanggal Evaluasi</th>
+                      <th>Versi Model</th>
+                      <th>Jumlah Sampel</th>
+                      <th>Accuracy</th>
+                      <th>F1-Score</th>
+                      <th>Status Evaluasi</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    ${visible.map((record, index) => `
+                      <tr>
+                        <td>${esc(formatDate(record.createdAt))}</td>
+                        <td><b>${esc(record.versionLabel || record.classifierVersion)}</b></td>
+                        <td>${record.metrics.total}</td>
+                        <td>${formatPercent(record.metrics.accuracy)}</td>
+                        <td>${formatPercent(record.metrics.f1)}</td>
+                        <td>${
+                          index === 0
+                            ? (readiness.stale
+                                ? badge("Perlu diperbarui", "yellow")
+                                : badge("Terbaru", "green"))
+                            : badge("Arsip", "gray")
+                        }</td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+            `
+            : `
+              <div class="model-empty">
+                Riwayat akan muncul setelah evaluasi pertama dijalankan.
+              </div>
+            `}
+        </div>
+      `;
+    }
+
+    /* KONTEN HALAMAN */
+
+    function renderModelContent() {
+      const record = latestRecord();
+      const readiness = getReadiness(record);
+
+      const evaluateLabel = state.busy
+        ? "Mengevaluasi…"
+        : record ? "Evaluasi Ulang" : "Jalankan Evaluasi";
+
+      return `
+        <div class="page-title">
+          <div>
+            <h1>Evaluasi Model</h1>
+            <p>
+              Pantau performa dan hasil evaluasi model klasifikasi EcoSort.
+            </p>
+          </div>
+
+          <div class="page-title-actions">
+            <button
+              type="button"
+              class="btn btn-outline"
+              data-model-action="rules"
+            >
+              <span>Lihat aturan pohon</span>
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-outline"
+              data-model-action="report"
+              ${record ? "" : "disabled"}
+              ${record ? "" : 'title="Jalankan evaluasi terlebih dahulu"'}
+            >
+              <span>Unduh Laporan</span>
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-primary"
+              data-model-action="reevaluate"
+              ${state.busy ? "disabled" : ""}
+            >
+              ${icon("model", 18)}
+              <span>${esc(evaluateLabel)}</span>
+            </button>
+          </div>
+        </div>
+
+        ${renderStatusNote(readiness, record)}
+
+        ${renderMetricCards(record)}
+
+        ${renderPerformancePanel(record)}
+
+        <div class="model-grid">
+          ${renderMatrixPanel(record)}
+          ${renderModelInfo(readiness, record)}
+        </div>
+
+        ${renderClassTable(record)}
+
+        ${renderErrorsPanel(record)}
+
+        ${renderHistoryPanel(readiness)}
+      `;
+    }
+
+    function renderMain() {
+      const main = root.querySelector("#model-main");
+
+      if (main) {
+        main.innerHTML = renderModelContent();
+      }
+    }
+
+    /* NAVIGASI */
+
+    function navigate(page) {
+      if (!allowedPages.has(page) || !ROUTES[page]) {
+        return false;
+      }
+
+      const url = new URL(ROUTES[page], window.location.href);
+
+      url.hash = `app/${page}`;
+
+      window.location.assign(url.href);
+      return true;
+    }
+
+    function setSidebarOpen(open) {
+      sidebarOpen = Boolean(open);
+
+      root.querySelector(".sidebar")
+        ?.classList.toggle("sidebar-open", sidebarOpen);
+
+      const overlay = root.querySelector(".side-overlay");
+
+      if (overlay) {
+        overlay.style.display =
+          sidebarOpen &&
+          window.matchMedia("(max-width:1050px)").matches
+            ? "block"
+            : "none";
+      }
+    }
+
+    /* NOTIFIKASI */
+
+    function showToast(message, tone = "success") {
+      showSharedToast(message, tone);
+    }
+
+    async function handleLogout() {
+      const confirmed = await confirmLogout();
+      if (!confirmed) return;
+
+      if (logout()) {
+        window.location.assign("../landing.html");
+      } else {
+        showToast("Gagal keluar dari akun.", "error");
+      }
+    }
+
+    /* MODAL */
+
+    function modalHost() {
+      return root.querySelector("#model-modal-root");
+    }
+
+    function closeModal() {
+      modalHost()?.replaceChildren();
+    }
+
+    function focusModal() {
+      modalHost()?.querySelector("button")?.focus();
+    }
+
+    function renderRulesModal() {
+      const rules = getRuleSummary();
+
+      modalHost().innerHTML = `
+        <div
+          class="modal-backdrop"
+          data-model-backdrop
+          role="presentation"
+        >
+          <div
+            class="modal modal-wide"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rules-title"
+          >
+            <div class="modal-head">
+              <div>
+                <span class="detail-kicker">
+                  ATURAN AKTIF · ${esc(rules.version)}
+                </span>
+
+                <h3 id="rules-title">Aturan Decision Tree</h3>
+
+                <p>
+                  Aturan ini dijalankan langsung di browser oleh halaman
+                  klasifikasi dan evaluasi ini. Daftar kata kunci dibaca
+                  dari classifier yang sedang aktif.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                data-model-action="close-modal"
+                aria-label="Tutup aturan"
+              >
+                ${icon("close")}
+              </button>
+            </div>
+
+            <div class="modal-body">
+              <h4 class="rules-heading" style="margin-top:0">Alur keputusan</h4>
+
+              ${rules.steps.map(step => `
+                <p class="rule-step">
+                  <b>${esc(step.title)}</b>
+                  ${esc(step.text)}
+                </p>
+              `).join("")}
+
+              <h4 class="rules-heading">Kata kunci</h4>
+
+              ${rules.groups.map(group => `
+                <div class="term-group">
+                  <h4>${esc(group.label)} (${group.terms.length})</h4>
+                  <div class="term-chips">
+                    ${group.terms.map(term => `<span>${esc(term)}</span>`).join("")}
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+
+            <div class="modal-actions">
+              <button
+                type="button"
+                class="btn btn-primary"
+                data-model-action="close-modal"
+              >
+                <span>Tutup</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      focusModal();
+    }
+
+    function renderConfirmModal(key) {
+      const config = CONFIRMS[key];
+      if (!config) return;
+
+      modalHost().innerHTML = `
+        <div
+          class="modal-backdrop"
+          data-model-backdrop
+          role="presentation"
+        >
+          <div
+            class="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-title"
+          >
+            <div class="modal-head">
+              <div>
+                <h3 id="confirm-title">${esc(config.title)}</h3>
+                <p>${esc(config.text)}</p>
+              </div>
+
+              <button
+                type="button"
+                data-model-action="close-modal"
+                aria-label="Tutup"
+              >
+                ${icon("close")}
+              </button>
+            </div>
+
+            <div class="modal-actions">
+              <button
+                type="button"
+                class="btn btn-outline"
+                data-model-action="close-modal"
+              >
+                <span>Batal</span>
+              </button>
+
+              <button
+                type="button"
+                class="btn ${config.danger ? "btn-danger" : "btn-primary"}"
+                data-model-action="confirm-yes"
+                data-confirm="${esc(key)}"
+              >
+                <span>${esc(config.label)}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      focusModal();
+    }
+
+    function renderLogoutModal() {
+      modalHost().innerHTML = `
+        <div
+          class="modal-backdrop"
+          data-model-backdrop
+          role="presentation"
+        >
+          <form
+            class="modal"
+            data-model-logout
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-modal-title"
+            novalidate
+          >
+            <div class="modal-head">
+              <div class="delete-icon">
+                ${icon("waste")}
+
+                <h3 id="logout-modal-title">
+                  Keluar dari EcoSort?
+                </h3>
+
+                <p>
+                  Tindakan ini akan mengakhiri sesi akun Anda.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                data-model-action="close-modal"
+                aria-label="Tutup modal"
+              >
+                ${icon("close")}
+              </button>
+            </div>
+
+            <div class="modal-actions">
+              <button
+                type="button"
+                class="btn btn-outline"
+                data-model-action="close-modal"
+              >
+                <span>Batal</span>
+              </button>
+
+              <button
+                type="submit"
+                class="btn btn-danger"
+              >
+                <span>Ya, keluar</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      `;
+
+      focusModal();
+    }
+
+    /* AKSI */
+
+    async function handleEvaluate() {
+      if (state.busy) return;
+
+      state.busy = true;
+      renderMain();
+
+      /* Beri kesempatan browser menampilkan status "Mengevaluasi…". */
+      await new Promise(resolve =>
+        requestAnimationFrame(() => setTimeout(resolve, 0))
+      );
+
+      const result = runEvaluation();
+
+      state.busy = false;
+
+      if (!result.ok) {
+        renderMain();
+        showToast(result.error, "error");
+        return;
+      }
+
+      state.records = result.records;
+      renderMain();
+
+      const metrics = result.record.metrics;
+
+      showToast(
+        `Evaluasi selesai: ${metrics.total} sampel diuji, accuracy ${formatPercent(metrics.accuracy)}.`,
+        "success"
+      );
+    }
+
+    function handleReport() {
+      const record = latestRecord();
+
+      if (!record) {
+        showToast(
+          "Belum ada hasil evaluasi. Jalankan evaluasi terlebih dahulu.",
+          "info"
+        );
+        return;
+      }
+
+      try {
+        downloadReport(record);
+        showToast("Laporan evaluasi (CSV) berhasil diunduh.", "success");
+      } catch (error) {
+        console.error("ECOSORT: Gagal mengunduh laporan.", error);
+        showToast("Laporan gagal diunduh.", "error");
+      }
+    }
+
+    function handleConfirm(key) {
+      closeModal();
+
+      if (key === "clear-history") {
+        if (clearEvaluations()) {
+          state.records = [];
+          renderMain();
+          showToast("Riwayat evaluasi dihapus.", "success");
+        } else {
+          showToast("Riwayat evaluasi gagal dihapus.", "error");
+        }
+
+        return;
+      }
+
+      if (key === "load-sample") {
+        const result = appendSampleDataset();
+
+        if (!result.ok) {
+          showToast(result.error, "error");
+          return;
+        }
+
+        renderMain();
+
+        showToast(
+          result.added
+            ? `${result.added} contoh data ditambahkan ke dataset. Jalankan evaluasi untuk melihat hasilnya.`
+            : "Contoh data sudah ada di dataset.",
+          result.added ? "success" : "info"
+        );
+      }
+    }
+
+    function handleClick(event) {
+      const button = event.target.closest("[data-model-action]");
+
+      if (!button || !root.contains(button)) {
+        return;
+      }
+
+      switch (button.dataset.modelAction) {
+        case "rules":
+          renderRulesModal();
+          break;
+
+        case "report":
+          handleReport();
+          break;
+
+        case "reevaluate":
+          handleEvaluate();
+          break;
+
+        case "go-dataset":
+          navigate("dataset");
+          break;
+
+        case "load-sample":
+        case "clear-history":
+          renderConfirmModal(button.dataset.modelAction);
+          break;
+
+        case "confirm-yes":
+          handleConfirm(button.dataset.confirm);
+          break;
+
+        case "close-modal":
+          closeModal();
+          break;
+
+        case "close-toast":
+          root.querySelector("#model-toast-root")
+            ?.replaceChildren();
+          break;
+      }
+    }
+
+    /* RENDER SHELL (sekali) */
+
+    function renderApp() {
+      root.innerHTML = `
+        <div class="app-shell">
+          ${renderSidebar({
+            role: ROLE,
+            page: "model",
+            open: sidebarOpen
+          })}
+
+          <div class="app-main">
+            ${renderHeader({ role: ROLE })}
+
+            <main id="model-main">
+              ${renderModelContent()}
+            </main>
+          </div>
+
+          <div
+            class="side-overlay"
+            style="display:none"
+          ></div>
+        </div>
+
+        <div id="model-modal-root"></div>
+        <div id="model-toast-root"></div>
+      `;
+
+      bindSidebar(root.querySelector(".sidebar"), {
+        setPage: navigate,
+        setOpen: setSidebarOpen,
+        onLogout: handleLogout
+      });
+
+      const removeHeaderEvents = bindHeader(
+        root.querySelector(".app-header"),
+        {
+          role: ROLE,
+          onMenu: () => setSidebarOpen(true),
+          onNavigate: navigate
+        }
+      );
+
+      root.querySelector(".side-overlay")
+        ?.addEventListener("click", () => {
+          setSidebarOpen(false);
+        });
+
+      /* Listener dipasang satu kali; hanya <main> yang dirender ulang. */
+
+      root.addEventListener("click", handleClick);
+
+      root.addEventListener("mousedown", event => {
+        if (event.target.matches("[data-model-backdrop]")) {
+          closeModal();
+        }
+      });
+
+      root.addEventListener("submit", event => {
+        if (!event.target.matches("[data-model-logout]")) {
+          return;
+        }
+
+        event.preventDefault();
+
+        if (logout()) {
+          window.location.assign("../landing.html");
+        } else {
+          showToast("Gagal mengakhiri sesi.", "error");
+        }
+      });
+
+      window.addEventListener(
+        "pagehide",
+        () => {
+          removeHeaderEvents();
+
+          if (toastTimer) {
+            window.clearTimeout(toastTimer);
+          }
+        },
+        { once: true }
+      );
+    }
+
+    /* INITIALIZATION */
+
+    const requestedPage = pageFromHash();
+
+    if (requestedPage && requestedPage !== "model") {
+      if (!navigate(requestedPage)) {
+        window.history.replaceState(null, "", "#app/model");
+        renderApp();
+      }
+    } else {
+      if (!requestedPage) {
+        window.history.replaceState(null, "", "#app/model");
+      }
+
+      renderApp();
+    }
+
+    window.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        closeModal();
+      }
+    });
+  </script>
+</body>
+</html>
