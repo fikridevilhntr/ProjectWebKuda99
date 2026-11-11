@@ -149,8 +149,11 @@
 
     let profile = {
       ...defaultProfile,
-      ...(storedMatches ? storedProfile : {})
+      ...(storedMatches ? storedProfile : {}),
+      
     };
+    // Menyimpan foto sementara sebelum tombol Simpan diklik
+    let pendingPhoto = null;
 
     function navigate(page) {
       if (!allowedPages.has(page)) {
@@ -226,33 +229,45 @@
       updateProfileBanner();
     }
 
-    function renderAvatar() {
-      const photo = getSafePhoto();
+    function renderAvatar(photoOverride = null) {
+        const photo = photoOverride !== null
+    ? (
+        typeof photoOverride === "string" &&
+        photoOverride.startsWith("data:image/")
+          ? photoOverride
+          : ""
+      )
+    : getSafePhoto();
 
-      if (photo) {
-        return `
-          <img
-            id="profile-avatar"
-            class="large-avatar profile-photo"
-            src="${escapeHTML(photo)}"
-            alt="Foto profil"
-          >
-        `;
-      }
+  if (photo) {
+    return `
+      <img
+        id="profile-avatar"
+        class="large-avatar profile-photo"
+        src="${escapeHTML(photo)}"
+        alt="Foto profil"
+      >
+    `;
+  }
 
-      return `
-        <span id="profile-avatar" class="large-avatar">
-          ${escapeHTML(getInitials(profile.name))}
-        </span>
-      `;
+  return `
+    <span id="profile-avatar" class="large-avatar">
+      ${escapeHTML(getInitials(profile.name))}
+    </span>
+  `;
     }
-
     function updateProfileBanner() {
       const heading = root.querySelector(".profile-banner h3");
       const avatar = root.querySelector("#profile-avatar");
 
       if (heading) heading.textContent = profile.name;
-      if (avatar) avatar.outerHTML = renderAvatar();
+
+      // Gunakan foto sementara jika tersedia
+      const previewPhoto = pendingPhoto !== null
+         ? pendingPhoto
+         : profile.photo;
+
+      if (avatar) avatar.outerHTML = renderAvatar(previewPhoto);
     }
 
     function showToast(message, tone = "success") {
@@ -496,12 +511,21 @@
       profile.name = String(profile.name).trim();
       profile.email = String(profile.email).trim();
 
+      if (pendingPhoto !== null) {
+         profile.photo = pendingPhoto;
+      }
+
       if (!persistProfile()) {
         showToast("Profil gagal disimpan.", "error");
         return;
       }
 
       updateProfileBanner();
+      // Perbarui foto dan identitas pada header
+      window.dispatchEvent(new CustomEvent("profile:updated"));
+
+      // Hapus foto sementara setelah berhasil disimpan
+      pendingPhoto = null;
       showToast("Profil berhasil disimpan.");
     }
 
@@ -546,22 +570,13 @@
       const reader = new FileReader();
 
       reader.onload = () => {
-        profile = {
-          ...profile,
-          photo: String(reader.result)
-        };
+        // Simpan foto sebagai preview sementara
+      pendingPhoto = String(reader.result);
 
-        if (!persistProfile()) {
-          showToast("Foto profil gagal disimpan.", "error");
-          return;
-        }
+  // Perbarui tampilan foto di halaman profil saja
+      updateProfileBanner();
 
-        updateProfileBanner();
-        // Memberi tahu header bahwa foto profil sudah berubah
-        document.dispatchEvent(
-            new Event("profile:updated")
-        );
-        showToast("Foto profil berhasil diperbarui.");
+      showToast("Preview foto berhasil diperbarui.");
       };
 
       reader.onerror = () => {
