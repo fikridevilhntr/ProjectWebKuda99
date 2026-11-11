@@ -60,6 +60,7 @@
     let selectedRecord = null;
     let pendingDelete = null;
     let confirmLogout = false;
+    let showExportPreview = false;
     let toastTimer = null;
     let removeHeaderEvents = () => {};
 
@@ -490,6 +491,67 @@
       `;
     }
 
+    function csvCell(value) {
+      const text = String(value ?? "").replace(/\r?\n/g, " ");
+      return '"' + text.replace(/"/g, '""') + '"';
+    }
+
+    function renderHistoryExportPreview(records) {
+      const rows = records.map(record => [
+        record.id ?? "", record.name ?? "", record.description ?? "",
+        getCategory(record), record.reason ?? "",
+        getRecommendation(record), formatDate(record)
+      ]);
+      const headers = ["ID", "Nama sampah", "Deskripsi", "Kategori", "Alasan klasifikasi", "Rekomendasi", "Tanggal"];
+      return \`
+        <div class="modal-backdrop" data-action="close-export-backdrop" role="presentation">
+          <section class="modal export-preview-modal" role="dialog" aria-modal="true" aria-labelledby="history-export-title">
+            <div class="modal-head">
+              <div><span class="detail-kicker">PRATINJAU EKSPOR CSV</span><h3 id="history-export-title">Tabel riwayat klasifikasi</h3><p>\${records.length} riwayat milik akun Anda</p></div>
+              <button type="button" data-action="close-export" aria-label="Tutup">\${icon("close")}</button>
+            </div>
+            <div class="modal-body">
+              <div class="export-preview-scroll">
+                <table class="export-preview-table">
+                  <thead><tr>\${headers.map(header => \`<th>\${escapeHTML(header)}</th>\`).join("")}</tr></thead>
+                  <tbody>\${rows.length ? rows.map(row => \`<tr>\${row.map(value => \`<td>\${escapeHTML(value || "-")}</td>\`).join("")}</tr>\`).join("") : '<tr><td colspan="7">Belum ada riwayat untuk diekspor.</td></tr>'}</tbody>
+                </table>
+              </div>
+              <p class="export-preview-note">Pratinjau hanya menampilkan riwayat milik akun yang sedang login.</p>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-outline" data-action="close-export">Tutup</button>
+              <button type="button" class="btn btn-primary" data-action="download-history-csv" \${records.length ? "" : "disabled"}>\${icon("download", 17)} Unduh CSV</button>
+            </div>
+          </section>
+        </div>\`;
+    }
+
+    function downloadHistoryCsv() {
+      const records = getFilteredRecords().map(({ record }) => record);
+      if (!records.length) {
+        showToast("Tidak ada riwayat untuk diekspor.", "error");
+        return;
+      }
+      const headers = ["ID", "Nama sampah", "Deskripsi", "Kategori", "Alasan klasifikasi", "Rekomendasi", "Tanggal"];
+      const rows = records.map(record => [
+        record.id ?? "", record.name ?? "", record.description ?? "",
+        getCategory(record), record.reason ?? "",
+        getRecommendation(record), formatDate(record)
+      ]);
+      const csv = "\uFEFF" + [headers, ...rows].map(row => row.map(csvCell).join(",")).join("\r\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = \`ecosort-riwayat-\${new Date().toISOString().slice(0, 10)}.csv\`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast(\`\${records.length} riwayat berhasil diekspor.\`);
+    }
+
     function renderToast() {
       return "<div id=\"toast-root\" aria-live=\"polite\"></div>";
     }
@@ -587,6 +649,10 @@
                 </div>
 
                 <div class="page-title-actions">
+                  <button type="button" class="btn btn-outline" data-action="open-history-export">
+                    ${icon("download", 17)}
+                    Ekspor CSV
+                  </button>
                   ${
                     filterVisible
                       ? `
@@ -634,6 +700,8 @@
         </div>
 
         ${renderDetailModal(selected)}
+
+        ${showExportPreview ? renderHistoryExportPreview(filtered.map(entry => entry.record)) : ""}
 
         ${
           deleting
@@ -787,6 +855,29 @@
       }
 
       switch (type) {
+        case "open-history-export":
+          showExportPreview = true;
+          renderApplication();
+          break;
+
+        case "close-export":
+          showExportPreview = false;
+          renderApplication();
+          break;
+
+        case "download-history-csv":
+          downloadHistoryCsv();
+          showExportPreview = false;
+          renderApplication();
+          break;
+
+        case "close-export-backdrop":
+          if (event.target === action) {
+            showExportPreview = false;
+            renderApplication();
+          }
+          break;
+
         case "toggle-date-filter":
           if (filterVisible && filterDate) {
             filterDate = "";
