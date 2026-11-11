@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#166534">
+  <title>Pusat Ekspor CSV | EcoSort</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .export-center{max-width:1200px;margin:0 auto}
+    .export-intro{margin:0 0 20px;color:#64748b;font-size:12px;line-height:1.6}
+    .export-controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+    .export-controls select{min-width:230px;height:42px;border:1px solid #cbd5e1;border-radius:8px;padding:0 12px;background:#fff}
+    .export-meta{display:flex;gap:12px;align-items:center;margin:0 0 12px;color:#64748b;font-size:11px}
+    .export-table-wrap{overflow:auto;border:1px solid #e2e8f0;border-radius:10px;background:#fff}
+    .export-table{width:100%;min-width:760px;border-collapse:collapse}
+    .export-table th,.export-table td{padding:13px 14px;text-align:left;border-bottom:1px solid #e2e8f0;font-size:10px;vertical-align:top}
+    .export-table th{background:#f8fafc;color:#475569;font-weight:750;white-space:nowrap}
+    .export-table td{color:#334155;max-width:280px}
+    .export-empty{padding:35px;text-align:center;color:#64748b;font-size:12px}
+    @media(max-width:650px){.export-controls{align-items:stretch}.export-controls select,.export-controls .btn{width:100%}}
+  </style>
+</head>
+<body>
+  <div id="app-root">
+    <main class="page-content">
+      <section class="panel export-center">
+        <div class="page-title">
+          <div><h1>Pusat Ekspor CSV</h1><p>Pratinjau data dalam bentuk tabel sebelum diunduh.</p></div>
+          <a class="btn btn-outline" href="./landing.html">Kembali</a>
+        </div>
+        <p class="export-intro">Pilih jenis data untuk melihat tabel pratinjau. File CSV yang diunduh mengikuti data yang tersimpan pada browser dan akun aktif.</p>
+        <div class="export-controls">
+          <select id="export-kind" aria-label="Pilih jenis data"></select>
+          <button class="btn btn-primary" id="export-download" type="button">Unduh CSV</button>
+        </div>
+        <div class="export-meta"><strong id="export-count">0 data</strong><span id="export-description"></span></div>
+        <div class="export-table-wrap" id="export-table"></div>
+      </section>
+    </main>
+  </div>
+  <script type="module">
+    import { getActiveSession } from "../js/core/auth.js";
+    import { readLocal, isHistoryOwnedBy, downloadFile, toCsv } from "../js/core/database.js";
+
+    const session = getActiveSession();
+    if (!session) {
+      window.location.replace("../login.html");
+      throw new Error("Sesi tidak ditemukan.");
+    }
+
+    const select = document.getElementById("export-kind");
+    const tableRoot = document.getElementById("export-table");
+    const countRoot = document.getElementById("export-count");
+    const descriptionRoot = document.getElementById("export-description");
+    const downloadButton = document.getElementById("export-download");
+
+    const options = session.role === "User"
+      ? [{ value: "history", label: "Riwayat Klasifikasi" }]
+      : [
+          { value: "waste", label: "Data Sampah" },
+          { value: "guides", label: "Panduan Penanganan" },
+          ...(session.role === "Super Admin" ? [{ value: "history", label: "Riwayat Klasifikasi" }] : [])
+        ];
+
+    select.innerHTML = options.map(option => `<option value="${option.value}">${option.label}</option>`).join("");
+
+    function rowsFor(kind) {
+      if (kind === "history") {
+        const records = readLocal("history-v2", []);
+        return (Array.isArray(records) ? records : [])
+          .filter(record => session.role !== "User" || isHistoryOwnedBy(record, session.email))
+          .map(record => ({
+            ID: record.id ?? "",
+            "Nama sampah": record.name ?? "",
+            Deskripsi: record.description ?? "",
+            Kategori: record.category ?? "",
+            "Alasan klasifikasi": record.reason ?? "",
+            Rekomendasi: Array.isArray(record.handling) ? record.handling.join("; ") : (record.recommendation ?? ""),
+            Tanggal: record.date ?? record.timestamp ?? ""
+          }));
+      }
+
+      const items = readLocal(`data-${kind}`, []);
+      return (Array.isArray(items) ? items : []).map(item => ({
+        ID: item.id ?? "",
+        Nama: item.name ?? "",
+        "Jenis / bentuk": item.type ?? "",
+        Kategori: item.category ?? "",
+        Status: item.status ?? "",
+        Deskripsi: item.description ?? ""
+      }));
+    }
+
+    function render() {
+      const kind = select.value;
+      const rows = rowsFor(kind);
+      const headers = rows.length ? Object.keys(rows[0]) : (
+        kind === "history"
+          ? ["ID", "Nama sampah", "Deskripsi", "Kategori", "Alasan klasifikasi", "Rekomendasi", "Tanggal"]
+          : ["ID", "Nama", "Jenis / bentuk", "Kategori", "Status", "Deskripsi"]
+      );
+
+      countRoot.textContent = `${rows.length} data`;
+      descriptionRoot.textContent = `· ${options.find(option => option.value === kind)?.label || ""}`;
+      downloadButton.disabled = rows.length === 0;
+
+      tableRoot.innerHTML = rows.length
+        ? `<table class="export-table"><thead><tr>${headers.map(header => `<th>${escapeHTML(header)}</th>`).join("")}</tr></thead><tbody>${rows.map(row => `<tr>${headers.map(header => `<td>${escapeHTML(row[header] || "-")}</td>`).join("")}</tr>`).join("")}</tbody></table>`
+        : `<div class="export-empty">Belum ada data untuk ditampilkan.</div>`;
+
+      downloadButton.onclick = () => {
+        if (!rows.length) return;
+        const csv = "\uFEFF" + toCsv(rows);
+        downloadFile(`ecosort-${kind}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+      };
+    }
+
+    function escapeHTML(value = "") {
+      return String(value).replace(/[&<>"']/g, character => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+      })[character]);
+    }
+
+    select.addEventListener("change", render);
+    render();
+  </script>
+</body>
+</html>
