@@ -59,6 +59,7 @@
     let filterDate = "";
     let selectedRecord = null;
     let pendingDelete = null;
+    let editingRecord = null;
     let confirmLogout = false;
     let toastTimer = null;
     let removeHeaderEvents = () => {};
@@ -284,6 +285,17 @@
 
             <button
               type="button"
+              class="history-edit"
+              data-action="edit-history"
+              data-record-key="${key}"
+              title="Edit riwayat"
+              aria-label="Edit riwayat ${escapeHTML(record.name || "")}"
+            >
+              ${icon("edit", 18)}
+            </button>
+
+            <button
+              type="button"
               class="history-delete"
               data-action="request-delete"
               data-record-key="${key}"
@@ -410,6 +422,15 @@
               <button
                 type="button"
                 class="btn btn-outline"
+                data-action="edit-selected-history"
+              >
+                ${icon("edit", 16)}
+                Edit riwayat
+              </button>
+
+              <button
+                type="button"
+                class="btn btn-outline"
                 data-action="close-detail"
               >
                 Tutup
@@ -425,6 +446,89 @@
             </div>
 
           </div>
+        </div>
+      `;
+    }
+
+    function renderEditModal(record) {
+      if (!record) return "";
+
+      const handlingText = getHandling(record).join("\n");
+
+      return `
+        <div
+          class="modal-backdrop"
+          data-action="edit-history-backdrop"
+          role="presentation"
+        >
+          <form
+            class="modal history-edit-modal"
+            data-form="edit-history"
+            data-record-key="${escapeHTML(editingRecord || "")}"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-history-title"
+            novalidate
+          >
+            <div class="modal-head">
+              <div>
+                <span class="detail-kicker">KELOLA RIWAYAT</span>
+                <h3 id="edit-history-title">Edit Riwayat Klasifikasi</h3>
+                <p>Perbarui informasi yang tersimpan pada riwayat Anda.</p>
+              </div>
+
+              <button
+                type="button"
+                data-action="close-edit-history"
+                aria-label="Tutup formulir"
+              >
+                ${icon("close")}
+              </button>
+            </div>
+
+            <div class="modal-body">
+              <label class="field">
+                <span>Nama sampah</span>
+                <input
+                  type="text"
+                  name="name"
+                  value="${escapeHTML(record.name || "")}"
+                  maxlength="120"
+                  required
+                />
+              </label>
+
+              <label class="field">
+                <span>Kategori hasil klasifikasi</span>
+                <input type="text" value="${escapeHTML(getCategory(record))}" disabled />
+                <small>Kategori hasil klasifikasi tidak diubah melalui formulir ini.</small>
+              </label>
+
+              <label class="field">
+                <span>Deskripsi sampah</span>
+                <textarea name="description" rows="3" maxlength="1000">${escapeHTML(record.description || "")}</textarea>
+              </label>
+
+              <label class="field">
+                <span>Alasan klasifikasi</span>
+                <textarea name="reason" rows="3" maxlength="1000">${escapeHTML(record.reason || "")}</textarea>
+              </label>
+
+              <label class="field">
+                <span>Rekomendasi penanganan</span>
+                <textarea name="handling" rows="4" maxlength="2000">${escapeHTML(handlingText)}</textarea>
+                <small>Pisahkan setiap langkah penanganan dengan baris baru.</small>
+              </label>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" class="btn btn-outline" data-action="close-edit-history">Batal</button>
+              <button type="submit" class="btn btn-primary">
+                ${icon("check", 16)}
+                Simpan perubahan
+              </button>
+            </div>
+          </form>
         </div>
       `;
     }
@@ -561,6 +665,12 @@
           )
         : null;
 
+      const editing = editingRecord
+        ? records.find((record, index) =>
+            getRecordKey(record, index) === editingRecord
+          )
+        : null;
+
       root.innerHTML = `
         <div class="app-shell">
 
@@ -634,6 +744,7 @@
         </div>
 
         ${renderDetailModal(selected)}
+        ${renderEditModal(editing)}
 
         ${
           deleting
@@ -690,6 +801,91 @@
     function closeDelete() {
       pendingDelete = null;
       renderApplication();
+    }
+
+    function closeEdit() {
+      editingRecord = null;
+      renderApplication();
+    }
+
+    function saveEdit(event) {
+      if (!editingRecord) return;
+
+      const formData = new FormData(event.target);
+      const name = String(formData.get("name") || "").trim();
+
+      if (!name) {
+        showToast("Nama sampah wajib diisi.", "error");
+        event.target.querySelector("[name=name]")?.focus();
+        return;
+      }
+
+      const visibleRecords = getHistoryRecords();
+      const target = visibleRecords.find((record, index) =>
+        getRecordKey(record, index) === editingRecord
+      );
+
+      if (!target) {
+        closeEdit();
+        showToast("Riwayat tidak ditemukan.", "error");
+        return;
+      }
+
+      const allRecords = readLocal(HISTORY_KEY, []);
+      if (!Array.isArray(allRecords)) {
+        showToast("Penyimpanan riwayat tidak valid.", "error");
+        return;
+      }
+
+      const targetId = target.id ?? target.timestamp;
+      let targetIndex = -1;
+
+      if (targetId !== undefined && targetId !== null) {
+        targetIndex = allRecords.findIndex(record =>
+          record &&
+          String(record.id ?? record.timestamp) === String(targetId) &&
+          isHistoryOwnedBy(record, session.email)
+        );
+      } else {
+        const targetJSON = JSON.stringify(target);
+        targetIndex = allRecords.findIndex(record =>
+          record &&
+          isHistoryOwnedBy(record, session.email) &&
+          JSON.stringify(record) === targetJSON
+        );
+      }
+
+      if (targetIndex < 0) {
+        closeEdit();
+        showToast("Riwayat tidak ditemukan.", "error");
+        return;
+      }
+
+      const handling = String(formData.get("handling") || "")
+        .split(/\r?\n/)
+        .map(step => step.trim())
+        .filter(Boolean);
+
+      try {
+        allRecords[targetIndex] = {
+          ...allRecords[targetIndex],
+          name,
+          description: String(formData.get("description") || "").trim(),
+          reason: String(formData.get("reason") || "").trim(),
+          handling,
+          recommendation: handling.join(" ")
+        };
+
+        writeLocal(HISTORY_KEY, allRecords);
+
+        editingRecord = null;
+        selectedRecord = null;
+        renderApplication();
+        showToast("Riwayat klasifikasi berhasil diperbarui.");
+      } catch (error) {
+        console.error("ECOSORT: Gagal memperbarui riwayat.", error);
+        showToast("Riwayat gagal diperbarui. Periksa penyimpanan browser.", "error");
+      }
     }
 
     function confirmDelete() {
@@ -778,6 +974,14 @@
       }
 
       if (
+        type === "edit-history-backdrop" &&
+        event.target === action
+      ) {
+        closeEdit();
+        return;
+      }
+
+      if (
         type === "logout-confirm-backdrop" &&
         event.target === action
       ) {
@@ -799,6 +1003,22 @@
         case "view-detail":
           selectedRecord = action.dataset.recordKey;
           renderApplication();
+          break;
+
+        case "edit-history":
+          editingRecord = action.dataset.recordKey;
+          selectedRecord = null;
+          renderApplication();
+          break;
+
+        case "edit-selected-history":
+          editingRecord = selectedRecord;
+          selectedRecord = null;
+          renderApplication();
+          break;
+
+        case "close-edit-history":
+          closeEdit();
           break;
 
         case "request-delete":
@@ -853,6 +1073,10 @@
         confirmDelete();
       }
 
+      if (form.dataset.form === "edit-history") {
+        saveEdit(event);
+      }
+
       if (form.dataset.form === "logout-confirm") {
         confirmLogoutAction();
       }
@@ -861,7 +1085,10 @@
     function handleKeydown(event) {
       if (event.key !== "Escape") return;
 
-      if (pendingDelete) {
+      if (editingRecord) {
+        editingRecord = null;
+        renderApplication();
+      } else if (pendingDelete) {
         pendingDelete = null;
         renderApplication();
       } else if (confirmLogout) {
