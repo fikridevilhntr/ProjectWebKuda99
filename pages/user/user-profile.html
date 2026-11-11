@@ -522,7 +522,7 @@
 
       updateProfileBanner();
       // Perbarui foto dan identitas pada header
-      window.dispatchEvent(new CustomEvent("profile:updated"));
+      document.dispatchEvent(new CustomEvent("profile:updated"));
 
       // Hapus foto sementara setelah berhasil disimpan
       pendingPhoto = null;

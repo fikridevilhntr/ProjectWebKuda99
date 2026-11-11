@@ -17,7 +17,7 @@ import { MENU_BY_ROLE } from "./router.js";
 // Sesi pengguna yang sedang login
 import { getActiveSession } from "./auth.js";
 // Pembaca penyimpanan lokal
-import { readLocal } from "./database.js";
+import { readLocal, writeLocal } from "./database.js";
 // Dialog konfirmasi logout bersama
 import { confirmLogout } from "../components/feedback.js";
 
@@ -297,6 +297,8 @@ export function renderHeader({
   notificationsOpen = false
 }) {
   const user = getHeaderIdentity(role);
+  // Membaca status notifikasi dari Local Storage
+  const notificationsRead = readLocal("notifications-read", false);
 
   return `
     <header class="app-header">
@@ -346,7 +348,7 @@ export function renderHeader({
           aria-expanded="${notificationsOpen}"
         >
           ${icon("bell")}
-          <span></span>
+          ${notificationsRead ? "" : "<span></span>"}
         </button>
 
         <div
@@ -777,6 +779,7 @@ export function bindHeader(element, {
 
       // Tandai notifikasi dibaca: tutup popover
       case "read-notifications":
+        writeLocal("notifications-read", true);
         notifications.hidden = true;
 
         notificationButton.setAttribute(
