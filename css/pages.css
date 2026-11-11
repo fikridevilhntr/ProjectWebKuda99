@@ -155,3 +155,11 @@
 .detail-wide {
   grid-column: 1 / 3;
 }
+
+/* USER HISTORY - EDIT MODAL */
+.history-edit { width:36px; height:36px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--primary); display:grid; place-items:center; }
+.history-edit:hover { background:#f0fdf4; }
+.history-edit-modal { width:min(560px,100%); max-height:min(88vh,760px); overflow-y:auto; }
+.history-edit-modal .field { margin-bottom:14px; }
+.history-edit-modal .field textarea { width:100%; min-height:76px; border:1px solid var(--line); border-radius:8px; padding:10px; font:inherit; font-size:11px; line-height:1.5; resize:vertical; }
+.history-edit-modal .field small { display:block; margin-top:5px; color:var(--muted); font-size:9px; }
