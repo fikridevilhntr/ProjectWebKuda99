@@ -937,6 +937,50 @@ function renderModal({
 }
 
 /* =====================================================
+   COMPONENT: CSV EXPORT PREVIEW
+===================================================== */
+
+function renderExportPreview(items, kind) {
+  const columns = kind === "waste"
+    ? ["ID", "Nama sampah", "Jenis / bentuk", "Kategori", "Status", "Deskripsi"]
+    : ["ID", "Judul panduan", "Jenis / bentuk", "Kategori", "Status", "Deskripsi"];
+
+  const values = item => [
+    item.id, item.name, item.type, item.category, item.status, item.description
+  ];
+
+  return `
+    <div class="modal-backdrop" data-action="backdrop-close" role="presentation">
+      <section class="modal export-preview-modal" role="dialog" aria-modal="true" aria-labelledby="export-preview-title" data-modal-content>
+        <div class="modal-head">
+          <div>
+            <span class="detail-kicker">PRATINJAU EKSPOR CSV</span>
+            <h3 id="export-preview-title">Tabel data yang akan diekspor</h3>
+            <p>${items.length} baris data · ${escapeHTML(kind === "waste" ? "Data Sampah" : "Panduan Penanganan")}</p>
+          </div>
+          <button type="button" data-action="close-modal" aria-label="Tutup pratinjau">${iconHTML("close")}</button>
+        </div>
+        <div class="modal-body">
+          <div class="export-preview-scroll">
+            <table class="export-preview-table">
+              <thead><tr>${columns.map(column => `<th>${escapeHTML(column)}</th>`).join("")}</tr></thead>
+              <tbody>
+                ${items.length ? items.map(item => `<tr>${values(item).map(value => `<td>${escapeHTML(value ?? "-")}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="6">Tidak ada data untuk ditampilkan.</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+          <p class="export-preview-note">Pratinjau mengikuti hasil pencarian dan filter yang sedang aktif.</p>
+        </div>
+        <div class="modal-actions">
+          ${buttonHTML("Tutup", { variant: "outline", action: "close-modal" })}
+          ${buttonHTML("Unduh CSV", { icon: "download", action: "export-download", disabled: !items.length })}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+/* =====================================================
    MAIN DATA PAGE CLASS
 ===================================================== */
 
@@ -1087,6 +1131,10 @@ export class DataPage {
 
   renderActionModal() {
     if (!this.action) return "";
+
+    if (this.action === "export") {
+      return renderExportPreview(this.filtered, this.kind);
+    }
 
     if (this.action === "view" && this.activeItem) {
       return renderItemDetail(
@@ -1482,7 +1530,12 @@ export class DataPage {
         break;
 
       case "export":
+        this.openAction("export");
+        break;
+
+      case "export-download":
         this.exportItems();
+        this.closeAction();
         break;
 
       case "reset":
