@@ -133,6 +133,8 @@ function renderPageTitle(kind) {
 
       <div class="page-title-actions">
 
+        <a class="btn btn-outline" href="../export.html">Pusat Ekspor CSV</a>
+
         ${buttonHTML("Ekspor", {
           variant: "outline",
           action: "export"
