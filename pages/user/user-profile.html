@@ -557,6 +557,10 @@
         }
 
         updateProfileBanner();
+        // Memberi tahu header bahwa foto profil sudah berubah
+        document.dispatchEvent(
+            new Event("profile:updated")
+        );
         showToast("Foto profil berhasil diperbarui.");
       };
 

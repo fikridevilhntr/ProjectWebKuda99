@@ -271,7 +271,14 @@ function getHeaderIdentity(role) {
 
   return {
     name,
-    initials: initials || fallback.initials
+  initials: initials || fallback.initials,
+
+  // Mengambil foto profil dari Local Storage
+  photo: savedMatches &&
+    typeof saved.photo === "string" &&
+    saved.photo.startsWith("data:image/")
+      ? saved.photo
+      : ""
   };
 }
 
@@ -361,10 +368,20 @@ export function renderHeader({
         <button
           class="profile-chip"
           data-action="open-profile"
-        >
-          <span class="avatar">
-            ${escapeHTML(user.initials)}
-          </span>
+        >${user.photo
+  ? `
+    <img
+      class="avatar"
+      src="${escapeHTML(user.photo)}"
+      alt="Foto profil"
+    >
+  `
+  : `
+    <span class="avatar">
+      ${escapeHTML(user.initials)}
+    </span>
+  `
+}
 
           <div>
             <b>${escapeHTML(user.name)}</b>
@@ -705,7 +722,19 @@ export function bindHeader(element, {
     }
 
     if (avatar) {
-      avatar.textContent = account.initials;
+      avatar.outerHTML = account.photo
+    ? `
+      <img
+        class="avatar"
+        src="${escapeHTML(account.photo)}"
+        alt="Foto profil"
+      >
+    `
+    : `
+      <span class="avatar">
+        ${escapeHTML(account.initials)}
+      </span>
+    `;
     }
   }
 
@@ -775,6 +804,13 @@ export function bindHeader(element, {
   document.addEventListener(
     "click",
     handleOutsideClick
+    
+  );
+
+  // Memperbarui header ketika foto profil berubah
+  document.addEventListener(
+    "profile:updated",
+    syncProfileHeader
   );
 
   resultsContainer.addEventListener(
@@ -812,6 +848,11 @@ export function bindHeader(element, {
   window.addEventListener(
     "storage",
     syncProfileHeader
+  );
+
+  document.addEventListener(
+  "profile:updated",
+  syncProfileHeader
   );
 
 
@@ -877,6 +918,12 @@ export function bindHeader(element, {
     document.removeEventListener(
       "change",
       handleProfileFieldChange
+      
+    );
+
+    document.removeEventListener(
+      "profile:updated",
+      syncProfileHeader
     );
 
     window.removeEventListener(
