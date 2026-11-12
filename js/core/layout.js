@@ -780,6 +780,7 @@ export function bindHeader(element, {
       // Tandai notifikasi dibaca: tutup popover
       case "read-notifications":
         writeLocal("notifications-read", true);
+        notificationButton.querySelector("span")?.remove();
         notifications.hidden = true;
 
         notificationButton.setAttribute(

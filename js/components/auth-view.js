@@ -362,14 +362,51 @@ export function renderAuthView({
 
           <!-- MESSAGE -->
 
-          ${message
-      ? `
-              <div class="form-message" role="status">
-                ${escapeHTML(message)}
-              </div>
-            `
-      : ""
-    }
+         ${isRegister && Object.keys(errors).length > 0
+  ? `
+      <div class="form-error-summary" role="alert">
+        <div class="form-error-heading">
+          <span class="error-icon">!</span>
+          <strong>Periksa kembali data kamu</strong>
+        </div>
+
+        <p>
+          Ada ${Object.keys(errors).length} kesalahan
+          yang perlu diperbaiki sebelum membuat akun.
+        </p>
+
+        <ul>
+          ${Object.values(errors).map(error =>
+            `<li>${escapeHTML(error)}</li>`
+          ).join("")}
+        </ul>
+      </div>
+    `
+  : ""
+}
+
+${message
+  ? `
+      <div class="form-success-card" role="status">
+
+        <div class="form-success-heading">
+          <span class="success-icon">✓</span>
+          <strong>Registrasi Berhasil!</strong>
+        </div>
+
+        <p class="form-success-highlight">
+          Akun EcoSort kamu berhasil dibuat.
+        </p>
+
+        <p class="form-success-description">
+          Silakan masuk menggunakan email dan kata sandi
+          yang sudah kamu daftarkan.
+        </p>
+
+      </div>
+    `
+  : ""
+}
 
           <!-- PROTOTYPE NOTE -->
 

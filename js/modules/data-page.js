@@ -1450,6 +1450,7 @@ export class DataPage {
   =================================================== */
 
   handleClick(event) {
+    
     const pageButton = event.target.closest("[data-page]");
 
     if (pageButton && this.root.contains(pageButton)) {

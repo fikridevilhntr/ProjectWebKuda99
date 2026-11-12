@@ -579,6 +579,90 @@
     line-height: 1.4;
 }
 
+/* Ringkasan kesalahan pada form registrasi */
+.auth-form .form-error-summary {
+    margin: 18px 0;
+    padding: 14px 16px;
+    border: 1px solid #fca5a5;
+    border-left: 4px solid #ef4444;
+    border-radius: 10px;
+    background: #fef2f2;
+    color: #991b1b;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.auth-form .form-error-heading {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 6px;
+}
+
+.auth-form .error-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #dc2626;
+    color: white;
+    font-weight: 700;
+}
+
+.auth-form .form-error-summary p {
+    margin: 0 0 6px;
+}
+
+.auth-form .form-error-summary ul {
+    margin: 0;
+    padding-left: 30px;
+}
+
+/* Feedback keberhasilan registrasi */
+.auth-form .form-success-card {
+    margin: 18px 0;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+    color: #171717;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.auth-form .form-success-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-size: 18px;
+}
+
+.auth-form .success-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 21px;
+    height: 21px;
+    border-radius: 50%;
+    background: #08783b;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.auth-form .form-success-highlight {
+    margin: 0 0 10px;
+    color: #08783b;
+}
+
+.auth-form .form-success-description {
+    margin: 0;
+    color: #171717;
+}
+
 /* Transisi border */
 .auth-form .input-wrap {
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
